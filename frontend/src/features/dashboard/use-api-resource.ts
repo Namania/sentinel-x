@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/features/auth/use-auth";
 
 export type Resource<T> =
-  { status: "loading" } | { status: "ready"; data: T } | { status: "error"; error: Error };
+  { status: "loading" } | { status: "ready"; data: T } | { status: "error" };
 
 /** Load one API resource once, through the authenticated fetch. */
 export function useApiResource<T>(path: string): Resource<T> {
@@ -15,13 +15,8 @@ export function useApiResource<T>(path: string): Resource<T> {
       .then((data) => {
         if (!cancelled) setResource({ status: "ready", data });
       })
-      .catch((error: unknown) => {
-        if (!cancelled) {
-          setResource({
-            status: "error",
-            error: error instanceof Error ? error : new Error(String(error)),
-          });
-        }
+      .catch(() => {
+        if (!cancelled) setResource({ status: "error" });
       });
     return () => {
       cancelled = true;

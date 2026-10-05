@@ -13,12 +13,12 @@ export default defineConfig({
     },
   },
   build: {
-    // LAN-served SPA on a Raspberry Pi: the app chunk stays around 300-400 kB (gzip < 150 kB).
+    // LAN-served SPA on a Raspberry Pi: the app chunk stays around 300 kB (gzip < 100 kB).
     chunkSizeWarningLimit: 600,
-    rollupOptions: {
+    rolldownOptions: {
       output: {
         // React and the router change rarely: a separate chunk keeps them cached across redeploys.
-        advancedChunks: {
+        codeSplitting: {
           groups: [
             {
               name: "vendor",
@@ -29,6 +29,11 @@ export default defineConfig({
       },
     },
   },
-
-  test: { environment: "jsdom", setupFiles: ["./src/test/setup.ts"], css: false },
+  test: {
+    environment: "jsdom",
+    setupFiles: ["./src/test/setup.ts"],
+    css: false,
+    // Dates rendered in tests must not depend on the machine's time zone.
+    env: { TZ: "Europe/Paris" },
+  },
 });

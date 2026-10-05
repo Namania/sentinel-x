@@ -8,10 +8,10 @@ export function RequireAuth() {
 
   if (status === "restoring") {
     return (
-      <div className="flex flex-1 flex-col p-4" aria-busy="true">
+      <main className="bg-background flex min-h-svh flex-col p-4" aria-busy="true">
         <span className="sr-only">Chargement de la session…</span>
         <Skeleton className="min-h-64 flex-1" />
-      </div>
+      </main>
     );
   }
   if (status === "anonymous") {

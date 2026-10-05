@@ -1,5 +1,5 @@
 import { LayoutDashboard, LogOut, Video, type LucideIcon } from "lucide-react";
-import { NavLink, useLocation } from "react-router";
+import { NavLink, useMatch } from "react-router";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,25 +14,43 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import { useAuth } from "@/features/auth/use-auth";
 import { formatLongDate } from "@/lib/format-date";
 import { initials } from "@/lib/initials";
 
-type NavItem = { to: string; label: string; icon: LucideIcon; end: boolean };
+type NavItemProps = { to: string; label: string; icon: LucideIcon; end: boolean };
 
-const NAV_ITEMS: NavItem[] = [
+const NAV_ITEMS: NavItemProps[] = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
   { to: "/camera", label: "Caméra", icon: Video, end: false },
 ];
 
-function isCurrent(item: NavItem, pathname: string): boolean {
-  return item.end ? pathname === item.to : pathname.startsWith(item.to);
+function NavItem({ to, label, icon: Icon, end }: NavItemProps) {
+  const active = useMatch({ path: to, end }) !== null;
+  const { isMobile, setOpenMobile } = useSidebar();
+  return (
+    <SidebarMenuItem>
+      <SidebarMenuButton asChild isActive={active} tooltip={label}>
+        <NavLink
+          to={to}
+          end={end}
+          onClick={() => {
+            // On a phone the menu is a sheet: close it once the destination is chosen.
+            if (isMobile) setOpenMobile(false);
+          }}
+        >
+          <Icon />
+          <span>{label}</span>
+        </NavLink>
+      </SidebarMenuButton>
+    </SidebarMenuItem>
+  );
 }
 
 export function AppSidebar() {
   const { user, logout } = useAuth();
-  const { pathname } = useLocation();
 
   return (
     <Sidebar collapsible="icon">
@@ -48,27 +66,19 @@ export function AppSidebar() {
             <nav aria-label="Navigation principale">
               <SidebarMenu>
                 {NAV_ITEMS.map((item) => (
-                  <SidebarMenuItem key={item.to}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={isCurrent(item, pathname)}
-                      tooltip={item.label}
-                    >
-                      <NavLink to={item.to} end={item.end}>
-                        <item.icon />
-                        <span>{item.label}</span>
-                      </NavLink>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
+                  <NavItem key={item.to} {...item} />
                 ))}
               </SidebarMenu>
             </nav>
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter role="contentinfo">
+      <SidebarFooter>
         {user && (
-          <div className="flex items-center gap-2 px-1 py-1">
+          <section
+            aria-label="Mon compte"
+            className="flex items-center gap-2 px-1 py-1 group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:px-0"
+          >
             <Avatar className="size-8">
               <AvatarFallback className="text-xs">{initials(user.email)}</AvatarFallback>
             </Avatar>
@@ -78,16 +88,10 @@ export function AppSidebar() {
                 Compte créé le {formatLongDate(user.created_at)}
               </p>
             </div>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label="Se déconnecter"
-              onClick={logout}
-              className="group-data-[collapsible=icon]:hidden"
-            >
+            <Button variant="ghost" size="icon-sm" aria-label="Se déconnecter" onClick={logout}>
               <LogOut />
             </Button>
-          </div>
+          </section>
         )}
       </SidebarFooter>
       <SidebarRail />
