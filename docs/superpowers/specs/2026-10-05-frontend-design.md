@@ -288,3 +288,16 @@ Un essai jetable avec les versions courantes a imposé ces écarts, repris dans 
 - **create-vite 9** : `--eslint` est nécessaire (Oxlint est désormais le défaut) et
   `--no-interactive --no-immediate` évite les invites.
 - **zod 4** : `z.email()` remplace `z.string().email()`.
+
+## Points ouverts (revue finale du 2026-10-05)
+
+- **Fin propre du flux MJPEG.** La vue caméra ne se reconnecte que sur l'événement `error` de
+  l'`<img>`. Si le backend ferme la réponse après une image complète (redémarrage de l'API,
+  `proxy_read_timeout` nginx), Chrome garde la dernière image sans émettre `error` : la vue peut
+  rester figée avec le badge « EN DIRECT ». À vérifier dans un vrai navigateur
+  (`docker compose restart api` pendant un flux) puis choisir : sondage périodique de
+  `/camera/status` avec reconnexion quand `viewers` retombe à 0, ou lecture du flux via
+  `fetch` + `ReadableStream` (ce qui retirerait aussi le token de l'URL).
+- **Perte de session sur coupure réseau.** La spec impose d'effacer le refresh token « dès qu'un
+  rafraîchissement échoue », donc aussi sur une simple erreur réseau 60 s avant l'expiration.
+  Proposition : n'effacer que sur 401 et réessayer plus tard sur `NetworkError`.
