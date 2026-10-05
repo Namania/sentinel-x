@@ -19,9 +19,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const accessTokenRef = useRef<string | null>(null);
   const userRef = useRef<authApi.User | null>(null);
   const restoredRef = useRef(false);
+  // Bumped on every session change so stale async work can detect it and bail out.
+  const sessionGeneration = useRef(0);
+  const refreshInFlight = useRef<Promise<string | null> | null>(null);
 
   const clearSession = useCallback(() => {
     writeRefreshToken(null);
+    sessionGeneration.current += 1;
     accessTokenRef.current = null;
     userRef.current = null;
     setSession(null);
@@ -29,6 +33,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const adopt = useCallback((pair: authApi.TokenPair, user: authApi.User) => {
+    sessionGeneration.current += 1;
     writeRefreshToken(pair.refresh_token);
     accessTokenRef.current = pair.access_token;
     userRef.current = user;
@@ -36,23 +41,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setStatus("authenticated");
   }, []);
 
-  /** Exchange the stored refresh token for a new pair. Resolves to the new access token or null. */
-  const refreshSession = useCallback(async (): Promise<string | null> => {
-    const stored = readRefreshToken();
-    if (!stored) {
-      clearSession();
-      return null;
-    }
-    try {
-      const pair = await authApi.refresh(stored);
-      // Already signed in: the user is known, so skip the redundant /users/me round trip.
-      const user = userRef.current ?? (await authApi.me(pair.access_token));
-      adopt(pair, user);
-      return pair.access_token;
-    } catch {
-      clearSession();
-      return null;
-    }
+  /**
+   * Exchange the stored refresh token for a new pair. Resolves to the new access token or null.
+   * Single-flight: concurrent callers share one request. A refresh made stale by a logout,
+   * login or newer refresh resolves to null without touching the session.
+   */
+  const refreshSession = useCallback((): Promise<string | null> => {
+    if (refreshInFlight.current) return refreshInFlight.current;
+    const generation = sessionGeneration.current;
+    const run = async (): Promise<string | null> => {
+      const stored = readRefreshToken();
+      if (!stored) {
+        clearSession();
+        return null;
+      }
+      try {
+        const pair = await authApi.refresh(stored);
+        if (sessionGeneration.current !== generation) return null;
+        // Already signed in: the user is known, so skip the redundant /users/me round trip.
+        const user = userRef.current ?? (await authApi.me(pair.access_token));
+        if (sessionGeneration.current !== generation) return null;
+        adopt(pair, user);
+        return pair.access_token;
+      } catch {
+        if (sessionGeneration.current !== generation) return null;
+        clearSession();
+        return null;
+      }
+    };
+    const promise = run().finally(() => {
+      if (refreshInFlight.current === promise) refreshInFlight.current = null;
+    });
+    refreshInFlight.current = promise;
+    return promise;
   }, [adopt, clearSession]);
 
   // 1. Restore the session once on startup.
@@ -75,8 +96,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // 2. Login.
   const login = useCallback(
     async (email: string, password: string) => {
+      const generation = sessionGeneration.current;
       const pair = await authApi.login(email, password);
       const user = await authApi.me(pair.access_token);
+      if (sessionGeneration.current !== generation) return;
       adopt(pair, user);
     },
     [adopt],

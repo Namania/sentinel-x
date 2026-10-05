@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { http, HttpResponse } from "msw";
+import { delay, http, HttpResponse } from "msw";
 import { useState } from "react";
 import { describe, expect, it } from "vitest";
 import { ApiError } from "@/lib/api";
@@ -162,5 +162,54 @@ describe("AuthProvider", () => {
     await user.click(screen.getByRole("button", { name: "fetch" }));
     expect(await screen.findByText("message:fetch-failed")).toBeInTheDocument();
     expect(screen.getByText("status:anonymous")).toBeInTheDocument();
+  });
+
+  it("logout during an in-flight refresh keeps the user logged out", async () => {
+    let refreshEntered = 0;
+    server.use(
+      http.post("/api/auth/login", () => HttpResponse.json(tokenPair(61))),
+      http.post("/api/auth/refresh", async () => {
+        refreshEntered += 1;
+        await delay(300);
+        return HttpResponse.json(tokenPair());
+      }),
+    );
+    const user = userEvent.setup();
+    renderProbe();
+    await user.click(screen.getByRole("button", { name: "login" }));
+    await screen.findByText("status:authenticated");
+    await waitFor(() => expect(refreshEntered).toBe(1), { timeout: 3000 });
+    await user.click(screen.getByRole("button", { name: "logout" }));
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    expect(screen.getByText("status:anonymous")).toBeInTheDocument();
+    expect(localStorage.getItem(REFRESH_TOKEN_KEY)).toBeNull();
+  });
+
+  it("concurrent refreshes share one request", async () => {
+    const user = userEvent.setup();
+    localStorage.setItem(REFRESH_TOKEN_KEY, VALID_REFRESH);
+    renderProbe();
+    await screen.findByText("status:authenticated");
+    let meCalls = 0;
+    let refreshCalls = 0;
+    server.use(
+      http.get("/api/users/me", () => {
+        meCalls += 1;
+        return meCalls <= 2
+          ? HttpResponse.json({ detail: "Invalid or expired token" }, { status: 401 })
+          : HttpResponse.json(TEST_USER);
+      }),
+      http.post("/api/auth/refresh", async () => {
+        refreshCalls += 1;
+        await delay(200);
+        return HttpResponse.json(tokenPair());
+      }),
+    );
+    const fetchButton = screen.getByRole("button", { name: "fetch" });
+    await user.click(fetchButton);
+    await user.click(fetchButton);
+    expect(await screen.findByText(`message:me:${TEST_USER.email}`)).toBeInTheDocument();
+    await waitFor(() => expect(meCalls).toBe(4));
+    expect(refreshCalls).toBe(1);
   });
 });
