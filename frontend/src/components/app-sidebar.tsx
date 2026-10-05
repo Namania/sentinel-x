@@ -14,7 +14,6 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
-  SidebarSeparator,
   useSidebar,
 } from "@/components/ui/sidebar";
 import { useAuth } from "@/features/auth/use-auth";
@@ -55,18 +54,18 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader className="px-4 py-3">
+      {/* Same height as the top bar of the page (h-12) so both bottom borders line up. */}
+      <SidebarHeader className="h-12 flex-row items-center justify-center border-b p-0">
         <span className="text-sm font-bold tracking-[0.18em] group-data-[collapsible=icon]:hidden">
           SENTINEL-X
         </span>
       </SidebarHeader>
-      <SidebarSeparator className="mx-0" />
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel>Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
             <nav aria-label="Navigation principale">
-              <SidebarMenu>
+              <SidebarMenu className="gap-px">
                 {NAV_ITEMS.map((item) => (
                   <NavItem key={item.to} {...item} />
                 ))}
