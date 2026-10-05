@@ -31,11 +31,11 @@ sur la branche `feat/camera-relay` (endpoint `GET /camera/stream`, auth Bearer o
 | Rôle | Choix |
 |---|---|
 | Build | Vite 7, TypeScript 5 strict |
-| UI | React 19, Tailwind v4 (`@tailwindcss/vite`), shadcn/ui (style `new-york`, base `neutral`, variables CSS), lucide-react |
+| UI | React 19, Tailwind v4 (`@tailwindcss/vite`), shadcn/ui CLI 4 (preset Nova sur Radix, couleur de base `neutral`, thème `teal`, variables CSS, police Geist auto-hébergée), lucide-react |
 | Routage | React Router 7, mode librairie (`createBrowserRouter`, `RouterProvider`) |
-| Formulaires | react-hook-form + zod, composant `Form` de shadcn |
+| Formulaires | react-hook-form + zod, composants `Field` de shadcn |
 | HTTP | `fetch` natif, petit client dans `src/lib/api.ts` |
-| Tests | Vitest, jsdom, Testing Library, MSW (mock HTTP), `@testing-library/user-event` |
+| Tests | Vitest 5, jsdom, Testing Library, MSW 3 (mock HTTP), `@testing-library/user-event` |
 | Qualité | ESLint (config du template Vite) + Prettier ; `tsc -b` en `typecheck` |
 | Paquets | pnpm 12, `pnpm install --frozen-lockfile` en CI et Docker |
 | Prod | Image `node:24-alpine` (build) → `nginx:alpine` (serve) |
@@ -47,7 +47,7 @@ strict comparable à `uv sync --frozen` côté backend.
 
 ```
 frontend/
-  package.json  pnpm-lock.yaml  vite.config.ts  vitest.config.ts
+  package.json  pnpm-lock.yaml  vite.config.ts   # config Vite + section `test` de Vitest
   tsconfig.json  tsconfig.app.json  tsconfig.node.json
   components.json            # config shadcn
   eslint.config.js  .prettierrc  .prettierignore
@@ -63,7 +63,7 @@ frontend/
     components/
       app-header.tsx         # titre SENTINEL-X, ThemeToggle, bouton Déconnexion si connecté
       ui/                    # composants shadcn ajoutés par la CLI (button, card, input, label,
-                             # form, dropdown-menu, alert, badge, skeleton)
+                             # field, dropdown-menu, alert, badge, skeleton, separator)
     features/
       theme/theme-provider.tsx   # contexte thème + persistance localStorage
       theme/theme-toggle.tsx     # DropdownMenu Clair / Sombre / Système
@@ -107,6 +107,8 @@ responsive. Le `<title>` du document devient « 404 · sentinel-x ».
 
 ## Thème
 
+- Couleurs : preset shadcn Nova, base `neutral`, thème `teal` (la couleur primaire des boutons,
+  liens et anneaux de focus est teal ; les gris restent neutres).
 - `ThemeProvider` : état `theme ∈ {"light","dark","system"}`, défaut `"dark"`, persisté dans
   `localStorage["sentinel-x-theme"]`. Applique la classe `dark` ou `light` sur
   `document.documentElement` ; en mode `system`, suit `matchMedia("(prefers-color-scheme: dark)")`
@@ -146,8 +148,8 @@ Le contexte expose `{ status, user, accessToken, login, logout }`.
 
 ### Page de connexion
 
-`Card` centrée : titre « Connexion », champs Email et Mot de passe (`Form` + zod : email valide,
-mot de passe non vide), bouton « Se connecter » désactivé pendant l'envoi, `Alert` destructive
+`Card` centrée : titre « Connexion », champs Email et Mot de passe (`Controller` de
+react-hook-form + composants `Field` + zod : email valide après `trim()`, mot de passe non vide), bouton « Se connecter » désactivé pendant l'envoi, `Alert` destructive
 pour l'erreur. Après succès : navigation vers `state.from` ou `/`. `<title>` :
 « Connexion · sentinel-x ».
 
@@ -267,3 +269,22 @@ Un badge CI est ajouté en tête du README.
 Section « Front » : prérequis (Node 24, pnpm), `pnpm install`, `pnpm dev`, URL
 `http://localhost:5173`, scripts ; mise à jour de la section « Démarrer » (le `web` est
 désormais construit, `docker compose up -d --build`).
+
+## Ajustements après essai d'outillage (2026-10-05)
+
+Un essai jetable avec les versions courantes a imposé ces écarts, repris dans le plan :
+
+- **shadcn CLI 4** : l'initialisation se fait par URL de preset,
+  `shadcn init "https://ui.shadcn.com/init?base=radix&style=nova&baseColor=neutral&theme=teal&…" -b radix -y`
+  (le style `new-york` n'existe plus ; Nova sur Radix en est l'équivalent). Le composant `form`
+  a disparu, remplacé par `field` ; `cn` vient du paquet `cn` ré-exporté par `src/lib/utils.ts` ;
+  la police Geist est auto-hébergée via `@fontsource-variable/geist` (rien ne part vers Google).
+- **Thème teal** : demandé par le propriétaire du projet ; c'est le paramètre `theme=teal` du
+  preset, la couleur de base reste `neutral`.
+- **TypeScript 6** : `baseUrl` est refusé ; l'alias `@/` passe uniquement par `paths`.
+- **Vite 8** : `import.meta.dirname` remplace `__dirname` dans `vite.config.ts` ; la config Vitest
+  vit dans `vite.config.ts` (`defineConfig` de `vitest/config`), pas de `vitest.config.ts`.
+- **MSW 3** : l'option `onUnhandledRequest` s'appelle `onUnhandledFrame`.
+- **create-vite 9** : `--eslint` est nécessaire (Oxlint est désormais le défaut) et
+  `--no-interactive --no-immediate` évite les invites.
+- **zod 4** : `z.email()` remplace `z.string().email()`.
