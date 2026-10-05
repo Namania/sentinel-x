@@ -84,7 +84,13 @@ export function AppSidebar() {
               <AvatarFallback className="text-xs">{initials(user.email)}</AvatarFallback>
             </Avatar>
             {collapsed ? (
-              <Button variant="ghost" size="icon-sm" aria-label="Déconnexion" onClick={logout}>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label="Déconnexion"
+                onClick={logout}
+                className="text-destructive hover:text-destructive"
+              >
                 <LogOut />
               </Button>
             ) : (
@@ -93,7 +99,7 @@ export function AppSidebar() {
                 <button
                   type="button"
                   onClick={logout}
-                  className="text-muted-foreground hover:text-foreground flex items-center gap-1 underline-offset-2 hover:underline"
+                  className="text-destructive flex items-center gap-1 underline-offset-2 hover:underline"
                 >
                   <LogOut className="size-3" aria-hidden="true" />
                   Déconnexion
