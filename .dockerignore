@@ -5,3 +5,7 @@ docs
 scripts
 **/node_modules
 frontend/dist
+.superpowers
+docker
+.docker
+frontend/.env*
