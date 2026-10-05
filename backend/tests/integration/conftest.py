@@ -21,6 +21,7 @@ TEST_SETTINGS = Settings(
     postgres_port=int(os.environ.get("TEST_POSTGRES_PORT", "5432")),
     postgres_db=os.environ.get("TEST_POSTGRES_DB", "sentinel_test"),
     jwt_secret=TEST_JWT_SECRET,
+    camera_stream_url=None,
 )
 TEST_DATABASE_URL = TEST_SETTINGS.database_url
 
