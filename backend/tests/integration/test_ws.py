@@ -63,3 +63,12 @@ def test_ws_disconnect_removes_connection_from_hub(client, app):
     with client.websocket_connect(f"/ws?token={tokens['access_token']}"):
         assert app.state.hub.connection_count == 1
     assert app.state.hub.connection_count == 0
+
+
+def test_ws_binary_frame_returns_error_and_keeps_connection(client):
+    tokens = register_and_login(client)
+    with client.websocket_connect(f"/ws?token={tokens['access_token']}") as ws:
+        ws.send_bytes(b"\x00\x01")
+        assert ws.receive_json() == {"type": "error", "detail": "expected text frame"}
+        ws.send_json({"type": "ping"})
+        assert ws.receive_json() == {"type": "pong"}

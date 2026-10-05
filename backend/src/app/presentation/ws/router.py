@@ -38,7 +38,13 @@ async def websocket_endpoint(
     hub.connect(user_id, websocket)
     try:
         while True:
-            raw = await websocket.receive_text()
+            frame = await websocket.receive()
+            if frame["type"] == "websocket.disconnect":
+                break
+            raw = frame.get("text")
+            if raw is None:
+                await websocket.send_json({"type": "error", "detail": "expected text frame"})
+                continue
             try:
                 message = json.loads(raw)
             except json.JSONDecodeError:

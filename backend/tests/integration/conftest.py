@@ -13,9 +13,15 @@ from app.infrastructure.config import Settings
 from app.infrastructure.db.models import Base
 from app.presentation.main import create_app
 
-TEST_DATABASE_URL = os.environ.get(
-    "TEST_DATABASE_URL", "postgresql+asyncpg://sentinel:sentinel@localhost:5432/sentinel_test"
+TEST_JWT_SECRET = "test-secret-0123456789-abcdefghijklmnop"
+
+TEST_SETTINGS = Settings(
+    postgres_host=os.environ.get("TEST_POSTGRES_HOST", "localhost"),
+    postgres_port=int(os.environ.get("TEST_POSTGRES_PORT", "5432")),
+    postgres_db=os.environ.get("TEST_POSTGRES_DB", "sentinel_test"),
+    jwt_secret=TEST_JWT_SECRET,
 )
+TEST_DATABASE_URL = TEST_SETTINGS.database_url
 
 
 def _run_isolated(coro_factory: Callable[[], Coroutine[Any, Any, None]]) -> None:
@@ -58,11 +64,7 @@ async def session_factory():
 
 @pytest.fixture(scope="session")
 def app():
-    return create_app(
-        Settings(
-            database_url=TEST_DATABASE_URL, jwt_secret="test-secret-0123456789-abcdefghijklmnop"
-        )
-    )
+    return create_app(TEST_SETTINGS)
 
 
 @pytest.fixture(scope="session")

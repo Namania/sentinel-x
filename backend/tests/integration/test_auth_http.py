@@ -1,7 +1,7 @@
 from uuid import uuid4
 
 from app.infrastructure.security.jwt_token_service import JwtTokenService
-from tests.integration.conftest import register_and_login
+from tests.integration.conftest import TEST_JWT_SECRET, register_and_login
 
 
 def test_register_returns_201_with_user(client):
@@ -74,7 +74,7 @@ def test_me_with_refresh_token_returns_401(client):
 
 def test_me_with_expired_token_returns_401(client):
     expired = JwtTokenService(
-        secret="test-secret-0123456789-abcdefghijklmnop",
+        secret=TEST_JWT_SECRET,
         access_ttl_seconds=-10,
         refresh_ttl_seconds=-10,
     )
@@ -85,7 +85,7 @@ def test_me_with_expired_token_returns_401(client):
 
 def test_me_with_token_for_deleted_user_returns_404(client, app):
     service = JwtTokenService(
-        secret="test-secret-0123456789-abcdefghijklmnop",
+        secret=TEST_JWT_SECRET,
         access_ttl_seconds=900,
         refresh_ttl_seconds=900,
     )

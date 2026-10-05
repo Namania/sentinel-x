@@ -27,7 +27,12 @@ class JwtTokenService:
 
     def decode(self, token: str) -> TokenPayload:
         try:
-            claims = jwt.decode(token, self._secret, algorithms=[self._algorithm])
+            claims = jwt.decode(
+                token,
+                self._secret,
+                algorithms=[self._algorithm],
+                options={"require": ["exp", "sub", "type"]},
+            )
         except jwt.PyJWTError as exc:
             raise InvalidToken() from exc
         try:
