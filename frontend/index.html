@@ -6,6 +6,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#000000" />
     <title>sentinel-x</title>
+    <script>
+      // Apply the stored theme before the first paint to avoid a flash of light theme.
+      (function () {
+        var theme = "dark";
+        try {
+          theme = localStorage.getItem("sentinel-x-theme") || "dark";
+        } catch (e) {
+          /* storage blocked */
+        }
+        var dark =
+          theme === "dark" ||
+          (theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+        document.documentElement.classList.add(dark ? "dark" : "light");
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
