@@ -8,6 +8,7 @@ from app.infrastructure.db.engine import create_engine, create_session_factory
 from app.infrastructure.realtime.hub import ConnectionHub
 from app.presentation.http import auth, health, users
 from app.presentation.http.errors import register_error_handlers
+from app.presentation.ws import router as ws_router
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -28,6 +29,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(health.router)
     app.include_router(auth.router)
     app.include_router(users.router)
+    app.include_router(ws_router.router)
     return app
 
 
