@@ -5,10 +5,13 @@ from collections.abc import Callable, Coroutine, Iterator
 from typing import Any
 
 import pytest
+from fastapi.testclient import TestClient
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
+from app.infrastructure.config import Settings
 from app.infrastructure.db.models import Base
+from app.presentation.main import create_app
 
 TEST_DATABASE_URL = os.environ.get(
     "TEST_DATABASE_URL", "postgresql+asyncpg://sentinel:sentinel@localhost:5432/sentinel_test"
@@ -51,3 +54,25 @@ async def session_factory():
     engine = create_async_engine(TEST_DATABASE_URL, poolclass=NullPool)
     yield async_sessionmaker(engine, expire_on_commit=False)
     await engine.dispose()
+
+
+@pytest.fixture(scope="session")
+def app():
+    return create_app(
+        Settings(
+            database_url=TEST_DATABASE_URL, jwt_secret="test-secret-0123456789-abcdefghijklmnop"
+        )
+    )
+
+
+@pytest.fixture(scope="session")
+def client(app) -> Iterator[TestClient]:
+    with TestClient(app) as test_client:
+        yield test_client
+
+
+def register_and_login(client: TestClient, email: str = "alice@example.com") -> dict:
+    client.post("/auth/register", json={"email": email, "password": "secret123"})
+    response = client.post("/auth/login", json={"email": email, "password": "secret123"})
+    assert response.status_code == 200, response.text
+    return response.json()
