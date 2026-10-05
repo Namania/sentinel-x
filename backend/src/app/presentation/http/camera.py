@@ -2,6 +2,7 @@ from collections.abc import AsyncIterator
 
 from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
 
 from app.presentation.dependencies import CameraRelayDep, StreamUserIdDep
 
@@ -44,3 +45,21 @@ async def _mjpeg(frames: AsyncIterator[bytes]) -> AsyncIterator[bytes]:
             + frame
             + b"\r\n"
         )
+
+
+class CameraStatusResponse(BaseModel):
+    configured: bool
+    viewers: int
+
+
+@router.get(
+    "/status",
+    summary="État du relais caméra",
+    description="Indique si une caméra est configurée (CAMERA_STREAM_URL) et combien de "
+    "spectateurs regardent le flux relayé.",
+    response_model=CameraStatusResponse,
+)
+async def camera_status(_: StreamUserIdDep, relay: CameraRelayDep) -> CameraStatusResponse:
+    return CameraStatusResponse(
+        configured=relay is not None, viewers=relay.viewer_count if relay else 0
+    )

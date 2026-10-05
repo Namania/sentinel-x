@@ -6,6 +6,7 @@ from collections.abc import Iterator
 import httpx
 import pytest
 import uvicorn
+from fastapi.testclient import TestClient
 
 from app.infrastructure.camera.relay import CameraRelay
 from app.presentation.main import create_app
@@ -107,3 +108,25 @@ def test_camera_is_released_when_viewers_disconnect(client, live_server, camera)
         time.sleep(0.01)
     assert camera.opens == 1
     assert camera.closes == 1
+
+
+def test_status_requires_a_token(client):
+    assert client.get("/camera/status").status_code == 401
+
+
+def test_status_reports_an_unconfigured_camera(client):
+    tokens = create_user_and_login(client)
+    response = client.get(f"/camera/status?token={tokens['access_token']}")
+    assert response.status_code == 200
+    assert response.json() == {"configured": False, "viewers": 0}
+
+
+def test_status_reports_a_configured_camera_and_its_viewers(client):
+    tokens = create_user_and_login(client)
+    app = create_app(TEST_SETTINGS)
+    app.state.camera_relay = CameraRelay(FakeCamera().open, retry_delay=0.01)
+    with TestClient(app) as configured:
+        headers = {"Authorization": f"Bearer {tokens['access_token']}"}
+        response = configured.get("/camera/status", headers=headers)
+    assert response.status_code == 200
+    assert response.json() == {"configured": True, "viewers": 0}

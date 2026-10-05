@@ -17,6 +17,7 @@ Le seul fichier de configuration est `backend/.env` (copié de `backend/.env.exa
 - Swagger : `http://<hôte>:8080/api/docs` (en local sans nginx : `http://localhost:8000/docs`)
 - WebSocket : `ws://<hôte>:8080/ws?token=<access_token>`
 - Flux caméra : `http://<hôte>:8080/api/camera/stream?token=<access_token>` (MJPEG, utilisable dans une balise `<img>` ; l'en-tête `Authorization: Bearer` fonctionne aussi)
+- État caméra : `GET /api/camera/status` → `{"configured": true, "viewers": 1}` (même authentification)
 - Page d'accueil nginx : `http://<hôte>:8080/`
 
 Il n'y a pas d'inscription par l'API : les comptes se créent uniquement avec la commande `create-user`, qui demande l'email puis le mot de passe (masqué, avec confirmation). En local hors Docker : `uv run create-user`.
