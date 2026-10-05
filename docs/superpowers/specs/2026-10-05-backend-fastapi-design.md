@@ -199,7 +199,9 @@ Multi-arch (fonctionne sur arm64 pour le Pi).
 | `web` | `nginx:alpine` | port `8080:80`, reverse proxy vers `api:8000`, en-têtes `Upgrade`/`Connection` pour `/ws` |
 
 Config nginx dans `nginx/default.conf`, montée en lecture seule. Elle proxifie
-`/api/` et `/ws` vers l'API ; la racine `/` sert la page par défaut de nginx
+`/api/` vers `api:8000/` en retirant le préfixe `/api` (l'API n'a pas de préfixe
+et reste appelable directement en local sur `:8000`), et `/ws` vers `api:8000/ws`
+avec les en-têtes d'upgrade. La racine `/` sert la page par défaut de nginx
 jusqu'à l'arrivée du front.
 
 ## Tests
