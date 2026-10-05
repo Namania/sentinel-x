@@ -27,3 +27,12 @@ def test_rejects_short_or_placeholder_jwt_secret():
         Settings(_env_file=None, jwt_secret="change-me")
     with pytest.raises(ValidationError):
         Settings(_env_file=None, jwt_secret="short")
+
+
+def test_camera_stream_url_is_optional():
+    settings = Settings(_env_file=None, jwt_secret="x" * 32)
+    assert settings.camera_stream_url is None
+    configured = Settings(
+        _env_file=None, jwt_secret="x" * 32, camera_stream_url="http://10.0.0.5:81/stream"
+    )
+    assert configured.camera_stream_url == "http://10.0.0.5:81/stream"

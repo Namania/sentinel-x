@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import asyncio
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from uuid import UUID
 
 from app.application.ports.event_broadcaster import Event
@@ -69,3 +72,47 @@ class RecordingBroadcaster:
 
     async def send_to_user(self, user_id: UUID, event: Event) -> None:
         self.direct.append((user_id, event))
+
+
+MJPEG_BOUNDARY = "123456789000000000000987654321"
+
+
+def mjpeg_part(payload: bytes, boundary: str = MJPEG_BOUNDARY) -> bytes:
+    return (
+        f"\r\n--{boundary}\r\n".encode()
+        + f"Content-Type: image/jpeg\r\nContent-Length: {len(payload)}\r\n\r\n".encode()
+        + payload
+    )
+
+
+class FakeCamera:
+    """Scriptable MJPEG upstream: the test pushes frames or failures, the relay reads them."""
+
+    def __init__(self) -> None:
+        self.content_type = f"multipart/x-mixed-replace;boundary={MJPEG_BOUNDARY}"
+        self._chunks: asyncio.Queue[bytes | Exception | None] = asyncio.Queue()
+        self.opens = 0
+        self.closes = 0
+
+    def push_frame(self, payload: bytes) -> None:
+        self._chunks.put_nowait(mjpeg_part(payload))
+
+    def fail(self, error: Exception | None = None) -> None:
+        self._chunks.put_nowait(error or ConnectionError("camera lost"))
+
+    @asynccontextmanager
+    async def open(self) -> AsyncIterator[FakeCamera]:
+        self.opens += 1
+        try:
+            yield self
+        finally:
+            self.closes += 1
+
+    async def aiter_bytes(self) -> AsyncIterator[bytes]:
+        while True:
+            item = await self._chunks.get()
+            if item is None:
+                return
+            if isinstance(item, Exception):
+                raise item
+            yield item

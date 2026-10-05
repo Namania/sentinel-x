@@ -13,6 +13,9 @@ class Settings(BaseSettings):
 
     api_root_path: str = ""
 
+    # MJPEG stream of the ESP32 camera, e.g. http://192.168.1.50:81/stream
+    camera_stream_url: str | None = None
+
     jwt_secret: str
     jwt_access_ttl_seconds: int = 900
     jwt_refresh_ttl_seconds: int = 604800
