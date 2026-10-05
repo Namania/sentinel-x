@@ -14,10 +14,10 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
+  SidebarSeparator,
   useSidebar,
 } from "@/components/ui/sidebar";
 import { useAuth } from "@/features/auth/use-auth";
-import { formatLongDate } from "@/lib/format-date";
 import { initials } from "@/lib/initials";
 
 type NavItemProps = { to: string; label: string; icon: LucideIcon; end: boolean };
@@ -51,6 +51,7 @@ function NavItem({ to, label, icon: Icon, end }: NavItemProps) {
 
 export function AppSidebar() {
   const { user, logout } = useAuth();
+  const collapsed = useSidebar().state === "collapsed";
 
   return (
     <Sidebar collapsible="icon">
@@ -59,6 +60,7 @@ export function AppSidebar() {
           SENTINEL-X
         </span>
       </SidebarHeader>
+      <SidebarSeparator className="mx-0" />
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel>Navigation</SidebarGroupLabel>
@@ -82,15 +84,23 @@ export function AppSidebar() {
             <Avatar className="size-8">
               <AvatarFallback className="text-xs">{initials(user.email)}</AvatarFallback>
             </Avatar>
-            <div className="min-w-0 flex-1 text-xs group-data-[collapsible=icon]:hidden">
-              <p className="truncate font-medium">{user.email}</p>
-              <p className="text-muted-foreground truncate">
-                Compte créé le {formatLongDate(user.created_at)}
-              </p>
-            </div>
-            <Button variant="ghost" size="icon-sm" aria-label="Se déconnecter" onClick={logout}>
-              <LogOut />
-            </Button>
+            {collapsed ? (
+              <Button variant="ghost" size="icon-sm" aria-label="Déconnexion" onClick={logout}>
+                <LogOut />
+              </Button>
+            ) : (
+              <div className="min-w-0 flex-1 text-xs">
+                <p className="truncate font-medium">{user.email}</p>
+                <button
+                  type="button"
+                  onClick={logout}
+                  className="text-muted-foreground hover:text-foreground flex items-center gap-1 underline-offset-2 hover:underline"
+                >
+                  <LogOut className="size-3" aria-hidden="true" />
+                  Déconnexion
+                </button>
+              </div>
+            )}
           </section>
         )}
       </SidebarFooter>

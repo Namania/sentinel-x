@@ -36,7 +36,8 @@ describe("AppSidebar", () => {
     const footer = within(await screen.findByRole("region", { name: "Mon compte" }));
     expect(footer.getByText(TEST_USER.email)).toBeInTheDocument();
     expect(footer.getByText("AL")).toBeInTheDocument();
-    await user.click(footer.getByRole("button", { name: "Se déconnecter" }));
+    expect(footer.queryByText(/créé le/i)).not.toBeInTheDocument();
+    await user.click(footer.getByRole("button", { name: "Déconnexion" }));
     expect(await screen.findByRole("heading", { name: "Connexion" })).toBeInTheDocument();
     expect(localStorage.getItem(REFRESH_TOKEN_KEY)).toBeNull();
   });
