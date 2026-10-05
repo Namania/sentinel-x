@@ -9,16 +9,18 @@
     <script>
       // Apply the stored theme before the first paint to avoid a flash of light theme.
       (function () {
-        var theme = "dark";
+        var stored = null;
         try {
-          theme = localStorage.getItem("sentinel-x-theme") || "dark";
+          stored = localStorage.getItem("sentinel-x-theme");
         } catch (e) {
           /* storage blocked */
         }
-        var dark =
-          theme === "dark" ||
-          (theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
-        document.documentElement.classList.add(dark ? "dark" : "light");
+        var light =
+          stored === "light" ||
+          (stored === "system" && !window.matchMedia("(prefers-color-scheme: dark)").matches);
+        var resolved = light ? "light" : "dark";
+        document.documentElement.classList.add(resolved);
+        document.documentElement.style.colorScheme = resolved;
       })();
     </script>
   </head>
