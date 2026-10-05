@@ -1,15 +1,32 @@
-"""End-to-end smoke test against a running stack.
+"""End-to-end smoke test against a running stack (run on the host that runs the compose stack).
 
 Usage: python scripts/smoke.py [base_url]   (default http://localhost:8080)
 """
 
 import asyncio
 import json
+import pathlib
+import subprocess
 import sys
 import uuid
 
 import httpx
 import websockets
+
+REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
+
+
+def create_user(email: str, password: str) -> None:
+    """Drive the interactive `create-user` command inside the running api container."""
+    result = subprocess.run(
+        ["docker", "compose", "exec", "-T", "api", "create-user"],
+        cwd=REPO_ROOT,
+        input=f"{email}\n{password}\n{password}\n",
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
 
 
 async def main(base_url: str) -> None:
@@ -23,11 +40,8 @@ async def main(base_url: str) -> None:
         assert health.status_code == 200, health.text
         print("health      OK")
 
-        register = await client.post(
-            f"{api}/auth/register", json={"email": email, "password": password}
-        )
-        assert register.status_code == 201, register.text
-        print("register    OK")
+        create_user(email, password)
+        print("create-user OK")
 
         login = await client.post(f"{api}/auth/login", json={"email": email, "password": password})
         assert login.status_code == 200, login.text

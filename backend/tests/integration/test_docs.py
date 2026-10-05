@@ -12,7 +12,7 @@ def test_swagger_ui_is_served(client):
 
 def test_openapi_lists_auth_routes(client):
     schema = client.get("/openapi.json").json()
-    assert {"/auth/register", "/auth/login", "/auth/refresh", "/users/me"} <= set(schema["paths"])
+    assert {"/auth/login", "/auth/refresh", "/users/me"} <= set(schema["paths"])
 
 
 def test_root_path_is_used_behind_proxy():
