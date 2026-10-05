@@ -1,4 +1,5 @@
 # sentinel-x
+[![CI](https://github.com/Namania/sentinel-x/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/Namania/sentinel-x/actions/workflows/ci.yml)
 
 Backend FastAPI (clean architecture, JWT auth, WebSocket, relais caméra) et front React + shadcn/ui, servis par nginx, pensés pour un Raspberry Pi avec Docker rootless.
 
