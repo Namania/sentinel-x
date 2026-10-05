@@ -7,7 +7,7 @@ Backend FastAPI (clean architecture, JWT auth, WebSocket, relais caméra) et fro
 
 ```sh
 cp backend/.env.example backend/.env   # puis renseigner POSTGRES_PASSWORD et JWT_SECRET
-docker compose up -d --build
+make deploy                             # git pull puis docker compose up -d --build (images de production)
 docker compose exec api create-user     # crée ton utilisateur (email + mot de passe demandés)
 scripts/smoke.sh                        # create-user → login → me → ws ping
 ```
@@ -25,6 +25,20 @@ Il n'y a pas d'inscription par l'API : les comptes se créent uniquement avec la
 
 ## Développer
 
+Avec Docker, tout le stack en rechargement à chaud (uvicorn `--reload` et Vite HMR) :
+
+```sh
+make dev            # http://localhost:8080 (front Vite) ; API aussi sur http://localhost:8000
+make down           # arrêter
+```
+
+`make dev` combine `compose.yml` et `compose.dev.yml` : les images sont construites avec la
+cible `dev` des Dockerfiles, `backend/src` et `frontend/` sont montés dans les conteneurs et
+chaque modification est rechargée. Si les changements ne sont pas détectés à travers le
+montage, lance `VITE_USE_POLLING=true make dev`.
+
+Sans Docker pour l'API :
+
 ```sh
 docker compose up -d db
 cd backend
@@ -35,10 +49,6 @@ uv run uvicorn --factory app.presentation.main:create_app --reload   # serveur l
 ```
 
 Les tests d'intégration utilisent la base `sentinel_test` créée par `.docker/postgres/init-test-db.sql`. Les identifiants viennent de `backend/.env` ; `TEST_POSTGRES_HOST`, `TEST_POSTGRES_PORT` et `TEST_POSTGRES_DB` permettent optionnellement de surcharger la cible des tests.
-
-## Caméra
-
-L'ESP32-S3-CAM ne sert qu'un seul client vidéo à la fois. Le backend ouvre donc une unique connexion vers la caméra, dès qu'un premier spectateur arrive, et redistribue chaque image à tous les spectateurs connectés sur `/camera/stream`. Un spectateur lent saute des images au lieu de ralentir les autres ; quand le dernier se déconnecte, la connexion caméra est fermée. Si la caméra est injoignable, le backend réessaie toutes les 2 s tant qu'il reste des spectateurs.
 
 ## Front
 

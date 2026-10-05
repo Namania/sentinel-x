@@ -1,0 +1,25 @@
+# Development overrides: hot reload for the API (uvicorn --reload) and the front (Vite HMR).
+# Usage: docker compose -f compose.yml -f compose.dev.yml up --build   (or: make dev)
+services:
+  api:
+    build:
+      target: dev
+    volumes:
+      - ./backend/src:/app/src
+      - ./backend/alembic:/app/alembic
+    ports:
+      - "127.0.0.1:8000:8000"
+
+  web:
+    build:
+      target: dev
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      # The Vite proxy talks to the api container instead of a local uvicorn.
+      API_PROXY_TARGET: http://api:8000
+      # Set to "true" if file changes are not picked up through the bind mount.
+      VITE_USE_POLLING: ${VITE_USE_POLLING:-false}
+    ports:
+      - "8080:5173"

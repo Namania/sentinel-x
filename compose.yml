@@ -1,3 +1,5 @@
+# Production stack (Raspberry Pi). For development with hot reload, add compose.dev.yml:
+#   docker compose -f compose.yml -f compose.dev.yml up --build      (or: make dev)
 services:
   db:
     image: postgres:16-alpine
@@ -15,7 +17,9 @@ services:
     restart: unless-stopped
 
   api:
-    build: ./backend
+    build:
+      context: ./backend
+      target: prod
     env_file: ./backend/.env
     environment:
       API_ROOT_PATH: /api
@@ -28,6 +32,7 @@ services:
     build:
       context: .
       dockerfile: frontend/Dockerfile
+      target: prod
     ports:
       - "8080:80"
     depends_on:

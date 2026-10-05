@@ -73,10 +73,12 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: backend
+          target: prod
           push: false
       - name: Build web image
         uses: docker/build-push-action@v6
         with:
           context: .
           file: frontend/Dockerfile
+          target: prod
           push: false

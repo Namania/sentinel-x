@@ -1,4 +1,4 @@
-FROM python:3.12-slim
+FROM python:3.12-slim AS base
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
@@ -21,4 +21,11 @@ RUN useradd --create-home app && chown -R app:app /app
 USER app
 
 EXPOSE 8000
+
+# Development: sources are bind-mounted over /app/src, uvicorn reloads on change.
+FROM base AS dev
+CMD ["sh", "-c", "alembic upgrade head && exec uvicorn --factory app.presentation.main:create_app --host 0.0.0.0 --port 8000 --reload --reload-dir /app/src"]
+
+# Production (last stage: the default when no --target is given).
+FROM base AS prod
 CMD ["sh", "-c", "alembic upgrade head && exec uvicorn --no-access-log --factory app.presentation.main:create_app --host 0.0.0.0 --port 8000"]
