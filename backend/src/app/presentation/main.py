@@ -20,7 +20,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         yield
         await engine.dispose()
 
-    app = FastAPI(title="sentinel-x", lifespan=lifespan)
+    app = FastAPI(
+        title="sentinel-x API",
+        version="0.1.0",
+        description="Authentification JWT et canal WebSocket temps réel.",
+        root_path=settings.api_root_path,
+        lifespan=lifespan,
+    )
     app.state.settings = settings
     app.state.session_factory = create_session_factory(engine)
     app.state.hub = ConnectionHub()

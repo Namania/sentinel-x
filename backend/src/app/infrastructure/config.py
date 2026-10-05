@@ -11,6 +11,8 @@ class Settings(BaseSettings):
     postgres_host: str = "db"
     postgres_port: int = 5432
 
+    api_root_path: str = ""
+
     jwt_secret: str
     jwt_access_ttl_seconds: int = 900
     jwt_refresh_ttl_seconds: int = 604800

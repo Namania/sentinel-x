@@ -17,6 +17,8 @@ services:
   api:
     build: ./backend
     env_file: ./backend/.env
+    environment:
+      API_ROOT_PATH: /api
     depends_on:
       db:
         condition: service_healthy
