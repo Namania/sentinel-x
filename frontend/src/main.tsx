@@ -1,9 +1,14 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
+import { RouterProvider } from "react-router";
 import "./index.css";
+import { createAppRouter } from "./app/router";
+import { ThemeProvider } from "./features/theme/theme-provider";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <p className="p-4 text-sm font-bold tracking-[0.18em]">SENTINEL-X</p>
+    <ThemeProvider>
+      <RouterProvider router={createAppRouter()} />
+    </ThemeProvider>
   </StrictMode>,
 );
