@@ -13,8 +13,22 @@ export default defineConfig({
     },
   },
   build: {
-    // LAN-served SPA on a Raspberry Pi: one ~570 kB chunk (180 kB gzip) is acceptable; revisit if it grows.
+    // LAN-served SPA on a Raspberry Pi: the app chunk stays around 300-400 kB (gzip < 150 kB).
     chunkSizeWarningLimit: 600,
+    rollupOptions: {
+      output: {
+        // React and the router change rarely: a separate chunk keeps them cached across redeploys.
+        advancedChunks: {
+          groups: [
+            {
+              name: "vendor",
+              test: /node_modules[\\/](react|react-dom|scheduler|react-router)[\\/]/,
+            },
+          ],
+        },
+      },
+    },
   },
+
   test: { environment: "jsdom", setupFiles: ["./src/test/setup.ts"], css: false },
 });

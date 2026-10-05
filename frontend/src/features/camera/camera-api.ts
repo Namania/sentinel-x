@@ -6,3 +6,7 @@ export const CAMERA_STATUS_PATH = "/camera/status";
 export function streamUrl(token: string, attempt: number): string {
   return `/api/camera/stream?token=${encodeURIComponent(token)}&t=${Date.now()}-${attempt}`;
 }
+
+export function viewersLabel(count: number): string {
+  return `${count} ${count > 1 ? "spectateurs" : "spectateur"}`;
+}

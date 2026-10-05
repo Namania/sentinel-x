@@ -35,21 +35,21 @@ describe("LoginPage", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("Serveur injoignable");
   });
 
-  it("logs in, stores the refresh token and lands on the camera page", async () => {
+  it("logs in, stores the refresh token and lands on the dashboard", async () => {
     renderRoutes(routes, "/login");
     await fillAndSubmit(TEST_USER.email, VALID_PASSWORD);
-    expect(await screen.findByRole("heading", { name: "Caméra" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Dashboard" })).toBeInTheDocument();
     expect(localStorage.getItem(REFRESH_TOKEN_KEY)).toBe(VALID_REFRESH);
   });
 
   it("accepts an email with spaces and capitals", async () => {
     renderRoutes(routes, "/login");
     await fillAndSubmit("  Alice@Example.com ", VALID_PASSWORD);
-    expect(await screen.findByRole("heading", { name: "Caméra" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Dashboard" })).toBeInTheDocument();
   });
 
   it("returns to the page the visitor came from", async () => {
-    renderRoutes(routes, "/");
+    renderRoutes(routes, "/camera");
     await screen.findByRole("heading", { name: "Connexion" });
     await fillAndSubmit(TEST_USER.email, VALID_PASSWORD);
     expect(await screen.findByRole("heading", { name: "Caméra" })).toBeInTheDocument();

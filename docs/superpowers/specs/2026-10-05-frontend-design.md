@@ -301,3 +301,19 @@ Un essai jetable avec les versions courantes a imposé ces écarts, repris dans 
 - **Perte de session sur coupure réseau.** La spec impose d'effacer le refresh token « dès qu'un
   rafraîchissement échoue », donc aussi sur une simple erreur réseau 60 s avant l'expiration.
   Proposition : n'effacer que sur 401 et réessayer plus tard sur `NetworkError`.
+
+## Évolution : barre latérale et dashboard (2026-10-05)
+
+Demandé après la livraison du lot initial, implémenté comme changement borné (pas de plan) :
+
+- Zone connectée dans un `AppShell` : composant shadcn `sidebar` (repliable en icônes, tiroir sur
+  mobile, raccourci Ctrl/Cmd+B) + `SidebarInset` avec une barre fine (bouton du menu, titre de la
+  page, bascule de thème). Les pages publiques (`/login`, 404) gardent le `RootLayout` et son
+  en-tête, qui ne porte plus la déconnexion.
+- Sidebar : en-tête « SENTINEL-X », groupe « Navigation » avec **Dashboard** (`/`) et **Caméra**
+  (`/camera`), pied avec avatar aux initiales, email, date de création du compte et bouton
+  « Se déconnecter ».
+- Routes : `/` → Dashboard (nouvel accueil), `/camera` → vue caméra, `/login`, `*`.
+- Dashboard : trois cartes (`role="region"`) alimentées par `authFetch` via `useApiResource` —
+  Caméra (`/camera/status`, configurée ou non, spectateurs, lien « Voir la caméra »), API
+  (`/health` → « En ligne » / « Indisponible »), Compte (email, « Créé le … »).

@@ -23,16 +23,24 @@ describe("routing", () => {
     expect(document.title).toBe("Connexion · sentinel-x");
   });
 
-  it("shows a loading state while restoring, then the camera page", async () => {
+  it("shows a loading state while restoring, then the dashboard", async () => {
     localStorage.setItem(REFRESH_TOKEN_KEY, VALID_REFRESH);
     renderRoutes(routes, "/");
     expect(screen.getByText("Chargement de la session…")).toBeInTheDocument();
-    expect(await screen.findByRole("heading", { name: "Caméra" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Dashboard" })).toBeInTheDocument();
+    expect(document.title).toBe("Dashboard · sentinel-x");
   });
 
-  it("sends an authenticated visitor from /login to /", async () => {
+  it("sends an authenticated visitor from /login to the dashboard", async () => {
     localStorage.setItem(REFRESH_TOKEN_KEY, VALID_REFRESH);
     renderRoutes(routes, "/login");
+    expect(await screen.findByRole("heading", { name: "Dashboard" })).toBeInTheDocument();
+  });
+
+  it("serves the camera view on /camera", async () => {
+    localStorage.setItem(REFRESH_TOKEN_KEY, VALID_REFRESH);
+    renderRoutes(routes, "/camera");
     expect(await screen.findByRole("heading", { name: "Caméra" })).toBeInTheDocument();
+    expect(document.title).toBe("Caméra · sentinel-x");
   });
 });

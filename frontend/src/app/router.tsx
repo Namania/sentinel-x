@@ -1,20 +1,32 @@
 import { createBrowserRouter, type RouteObject } from "react-router";
 import { CameraPage } from "@/pages/camera";
+import { DashboardPage } from "@/pages/dashboard";
 import { LoginPage } from "@/pages/login";
 import { NotFoundPage } from "@/pages/not-found";
+import { AppShell } from "./app-shell";
 import { RequireAuth } from "./require-auth";
 import { RootLayout } from "./root-layout";
 
 export const routes: RouteObject[] = [
   {
+    // Public pages: plain header, no sidebar.
     element: <RootLayout />,
     children: [
       { path: "/login", element: <LoginPage /> },
-      {
-        element: <RequireAuth />,
-        children: [{ index: true, element: <CameraPage /> }],
-      },
       { path: "*", element: <NotFoundPage /> },
+    ],
+  },
+  {
+    // Authenticated area: sidebar shell.
+    element: <RequireAuth />,
+    children: [
+      {
+        element: <AppShell />,
+        children: [
+          { index: true, element: <DashboardPage /> },
+          { path: "/camera", element: <CameraPage /> },
+        ],
+      },
     ],
   },
 ];

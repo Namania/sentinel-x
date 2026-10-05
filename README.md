@@ -14,7 +14,7 @@ scripts/smoke.sh                        # create-user → login → me → ws pi
 
 Le seul fichier de configuration est `backend/.env` (copié de `backend/.env.example`) : il contient les valeurs `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` et le secret `JWT_SECRET` (32 caractères minimum). Il n'y a pas d'URL de base à renseigner : l'API construit l'URL de la base à partir des valeurs `POSTGRES_*`. La variable optionnelle `CAMERA_STREAM_URL` (ex. `http://192.168.1.50:81/stream`) pointe vers le flux MJPEG de la caméra ESP32.
 
-- Front : `http://<hôte>:8080/` (connexion puis vue caméra)
+- Front : `http://<hôte>:8080/` (connexion, puis dashboard et vue caméra sur `/camera`, navigation dans la barre latérale)
 - API via nginx : `http://<hôte>:8080/api/...` (par exemple `/api/health`)
 - Swagger : `http://<hôte>:8080/api/docs` (en local sans nginx : `http://localhost:8000/docs`)
 - WebSocket : `ws://<hôte>:8080/ws?token=<access_token>`
@@ -62,5 +62,5 @@ Thème clair / sombre / système dans l'en-tête ; la session est restaurée au 
 - `backend/src/app/application` : use cases et ports
 - `backend/src/app/infrastructure` : SQLAlchemy, Argon2, JWT, hub WebSocket, relais caméra, settings
 - `backend/src/app/presentation` : FastAPI (HTTP, WS, composition root)
-- `frontend/src` : `app` (routeur, layout, garde d'auth), `features` (thème, auth, caméra), `pages`, `components/ui` (shadcn, généré)
+- `frontend/src` : `app` (routeur, layouts public et connecté, garde d'auth), `features` (thème, auth, caméra, dashboard), `pages`, `components` (sidebar, en-tête) et `components/ui` (shadcn, généré)
 - `docs/superpowers/specs` : spécifications de design

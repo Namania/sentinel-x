@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/use-auth";
 import { cn } from "@/lib/utils";
-import { CAMERA_STATUS_PATH, streamUrl, type CameraStatus } from "./camera-api";
+import { CAMERA_STATUS_PATH, streamUrl, viewersLabel, type CameraStatus } from "./camera-api";
 
 export const RECONNECT_DELAY_MS = 2000;
 const IDLE_DELAY_MS = 2500;
@@ -171,9 +171,7 @@ export function CameraView() {
               EN DIRECT
             </Badge>
           )}
-          <span className="text-xs text-neutral-300">
-            {viewers} {viewers > 1 ? "spectateurs" : "spectateur"}
-          </span>
+          <span className="text-xs text-neutral-300">{viewersLabel(viewers)}</span>
         </div>
         {fullscreenSupported && (
           <Button
