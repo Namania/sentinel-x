@@ -1,0 +1,7 @@
+.git
+.github
+backend
+docs
+scripts
+**/node_modules
+frontend/dist
