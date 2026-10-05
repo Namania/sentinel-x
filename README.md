@@ -7,7 +7,8 @@ Backend FastAPI (clean architecture, JWT auth, WebSocket) servi par nginx, pens�
 ```sh
 cp backend/.env.example backend/.env   # puis renseigner POSTGRES_PASSWORD et JWT_SECRET
 docker compose up -d
-scripts/smoke.sh                        # register → login → me → ws ping
+docker compose exec api create-user     # crée ton utilisateur (email + mot de passe demandés)
+scripts/smoke.sh                        # create-user → login → me → ws ping
 ```
 
 Le seul fichier de configuration est `backend/.env` (copié de `backend/.env.example`) : il contient les valeurs `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` et le secret `JWT_SECRET` (32 caractères minimum). Il n'y a pas d'URL de base à renseigner : l'API construit l'URL de la base à partir des valeurs `POSTGRES_*`.
@@ -16,6 +17,8 @@ Le seul fichier de configuration est `backend/.env` (copié de `backend/.env.exa
 - Swagger : `http://<hôte>:8080/api/docs` (en local sans nginx : `http://localhost:8000/docs`)
 - WebSocket : `ws://<hôte>:8080/ws?token=<access_token>`
 - Page d'accueil nginx : `http://<hôte>:8080/`
+
+Il n'y a pas d'inscription par l'API : les comptes se créent uniquement avec la commande `create-user`, qui demande l'email puis le mot de passe (masqué, avec confirmation). En local hors Docker : `uv run create-user`.
 
 ## Développer
 

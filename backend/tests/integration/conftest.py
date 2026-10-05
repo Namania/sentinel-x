@@ -11,6 +11,7 @@ from sqlalchemy.pool import NullPool
 
 from app.infrastructure.config import Settings
 from app.infrastructure.db.models import Base
+from app.presentation.cli import create_user
 from app.presentation.main import create_app
 
 TEST_JWT_SECRET = "test-secret-0123456789-abcdefghijklmnop"
@@ -73,8 +74,8 @@ def client(app) -> Iterator[TestClient]:
         yield test_client
 
 
-def register_and_login(client: TestClient, email: str = "alice@example.com") -> dict:
-    client.post("/auth/register", json={"email": email, "password": "secret123"})
+def create_user_and_login(client: TestClient, email: str = "alice@example.com") -> dict:
+    _run_isolated(lambda: create_user(email, "secret123", TEST_SETTINGS))
     response = client.post("/auth/login", json={"email": email, "password": "secret123"})
     assert response.status_code == 200, response.text
     return response.json()

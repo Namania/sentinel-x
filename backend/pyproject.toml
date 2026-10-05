@@ -15,6 +15,9 @@ dependencies = [
     "pyjwt>=2.9",
 ]
 
+[project.scripts]
+create-user = "app.presentation.cli:create_user_command"
+
 [dependency-groups]
 dev = [
     "pytest>=8",

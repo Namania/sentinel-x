@@ -1,21 +1,15 @@
 from datetime import datetime
 from uuid import UUID
 
-from fastapi import APIRouter, status
-from pydantic import BaseModel, EmailStr, Field
+from fastapi import APIRouter
+from pydantic import BaseModel, EmailStr
 
-from app.application.auth.dtos import LoginInput, RegisterInput, TokenPair, UserOutput
+from app.application.auth.dtos import LoginInput, TokenPair, UserOutput
 from app.application.auth.login import LoginUser
 from app.application.auth.refresh import RefreshTokens
-from app.application.auth.register import RegisterUser
 from app.presentation.dependencies import HasherDep, HubDep, TokenServiceDep, UowDep
 
 router = APIRouter(prefix="/auth", tags=["auth"])
-
-
-class RegisterRequest(BaseModel):
-    email: EmailStr
-    password: str = Field(min_length=8, max_length=128)
 
 
 class LoginRequest(BaseModel):
@@ -45,14 +39,6 @@ class TokenPairResponse(BaseModel):
     @classmethod
     def from_pair(cls, pair: TokenPair) -> "TokenPairResponse":
         return cls(access_token=pair.access_token, refresh_token=pair.refresh_token)
-
-
-@router.post("/register", status_code=status.HTTP_201_CREATED, response_model=UserResponse)
-async def register(body: RegisterRequest, uow: UowDep, hasher: HasherDep) -> UserResponse:
-    output = await RegisterUser(uow=uow, hasher=hasher).execute(
-        RegisterInput(email=body.email, password=body.password)
-    )
-    return UserResponse.from_output(output)
 
 
 @router.post("/login", response_model=TokenPairResponse)
