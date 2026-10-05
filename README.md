@@ -34,7 +34,7 @@ uv run ruff check . && uv run ruff format .
 uv run uvicorn --factory app.presentation.main:create_app --reload   # serveur local
 ```
 
-Les tests d'intégration utilisent la base `sentinel_test` créée par `docker/postgres/init-test-db.sql`. Les identifiants viennent de `backend/.env` ; `TEST_POSTGRES_HOST`, `TEST_POSTGRES_PORT` et `TEST_POSTGRES_DB` permettent optionnellement de surcharger la cible des tests.
+Les tests d'intégration utilisent la base `sentinel_test` créée par `.docker/postgres/init-test-db.sql`. Les identifiants viennent de `backend/.env` ; `TEST_POSTGRES_HOST`, `TEST_POSTGRES_PORT` et `TEST_POSTGRES_DB` permettent optionnellement de surcharger la cible des tests.
 
 ## Caméra
 
