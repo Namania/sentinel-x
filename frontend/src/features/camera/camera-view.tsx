@@ -83,7 +83,7 @@ export function CameraView() {
 
   const toggleFullscreen = useCallback(() => {
     const element = containerRef.current;
-    if (!element) return;
+    if (!element || typeof element.requestFullscreen !== "function") return;
     if (document.fullscreenElement) void document.exitFullscreen();
     else void element.requestFullscreen();
   }, []);
@@ -91,6 +91,10 @@ export function CameraView() {
   useEffect(() => {
     const onChange = () => setFullscreen(Boolean(document.fullscreenElement));
     const onKey = (event: KeyboardEvent) => {
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+      const target = event.target as HTMLElement | null;
+      if (target?.closest?.('[role="menu"], input, textarea, [contenteditable="true"]')) return;
+      if (target?.isContentEditable) return;
       if (event.key === "f" || event.key === "F") toggleFullscreen();
     };
     document.addEventListener("fullscreenchange", onChange);
@@ -121,6 +125,8 @@ export function CameraView() {
     );
   }
 
+  // iPhone Safari has no element fullscreen: hide the button there.
+  const fullscreenSupported = Boolean(document.fullscreenEnabled);
   const viewers = otherViewers + (state === "live" ? 1 : 0);
 
   return (
@@ -169,18 +175,20 @@ export function CameraView() {
             {viewers} {viewers > 1 ? "spectateurs" : "spectateur"}
           </span>
         </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="text-white hover:bg-white/15 hover:text-white"
-          aria-label={fullscreen ? "Quitter le plein écran" : "Plein écran"}
-          onClick={(event) => {
-            event.stopPropagation();
-            toggleFullscreen();
-          }}
-        >
-          {fullscreen ? <Minimize className="size-6" /> : <Maximize className="size-6" />}
-        </Button>
+        {fullscreenSupported && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-white hover:bg-white/15 hover:text-white"
+            aria-label={fullscreen ? "Quitter le plein écran" : "Plein écran"}
+            onClick={(event) => {
+              event.stopPropagation();
+              toggleFullscreen();
+            }}
+          >
+            {fullscreen ? <Minimize className="size-6" /> : <Maximize className="size-6" />}
+          </Button>
+        )}
       </div>
     </div>
   );

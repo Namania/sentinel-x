@@ -12,5 +12,9 @@ export default defineConfig({
       "/ws": { target: "ws://localhost:8000", ws: true },
     },
   },
+  build: {
+    // LAN-served SPA on a Raspberry Pi: one ~570 kB chunk (180 kB gzip) is acceptable; revisit if it grows.
+    chunkSizeWarningLimit: 600,
+  },
   test: { environment: "jsdom", setupFiles: ["./src/test/setup.ts"], css: false },
 });

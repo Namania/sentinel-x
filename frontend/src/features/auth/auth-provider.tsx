@@ -7,6 +7,8 @@ import { readRefreshToken, writeRefreshToken } from "./token-storage";
 
 /** Refresh the access token this long before it expires. */
 export const REFRESH_LEAD_MS = 60_000;
+/** Never schedule a refresh sooner than this, so an expired token cannot cause a tight loop. */
+export const REFRESH_MIN_DELAY_MS = 30_000;
 
 type Session = { accessToken: string; user: authApi.User };
 
@@ -88,7 +90,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!session) return;
     const expiresAt = jwtExpiresAt(session.accessToken);
     if (expiresAt === null) return;
-    const delay = Math.max(expiresAt - REFRESH_LEAD_MS - Date.now(), 0);
+    const delay = Math.max(expiresAt - REFRESH_LEAD_MS - Date.now(), REFRESH_MIN_DELAY_MS);
     const timer = setTimeout(() => void refreshSession(), delay);
     return () => clearTimeout(timer);
   }, [session, refreshSession]);

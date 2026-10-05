@@ -2,10 +2,10 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { delay, http, HttpResponse } from "msw";
 import { useState } from "react";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "@/lib/api";
 import { TEST_USER, VALID_PASSWORD, VALID_REFRESH, server, tokenPair } from "@/test/server";
-import { AuthProvider } from "./auth-provider";
+import { AuthProvider, REFRESH_MIN_DELAY_MS } from "./auth-provider";
 import { REFRESH_TOKEN_KEY } from "./token-storage";
 import { useAuth } from "./use-auth";
 
@@ -49,6 +49,10 @@ function renderProbe(props: { password?: string } = {}) {
 }
 
 describe("AuthProvider", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("is anonymous right away without a stored refresh token", () => {
     renderProbe();
     expect(screen.getByText("status:anonymous")).toBeInTheDocument();
@@ -113,12 +117,32 @@ describe("AuthProvider", () => {
         return HttpResponse.json(tokenPair(900));
       }),
     );
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"], shouldAdvanceTime: true });
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    renderProbe();
+    await user.click(screen.getByRole("button", { name: "login" }));
+    await screen.findByText("status:authenticated");
+    await vi.advanceTimersByTimeAsync(REFRESH_MIN_DELAY_MS);
+    await waitFor(() => expect(refreshCalls).toBe(1), { timeout: 3000 });
+    expect(screen.getByText("status:authenticated")).toBeInTheDocument();
+  });
+
+  it("does not refresh in a tight loop when the access token is already expired", async () => {
+    let refreshCalls = 0;
+    server.use(
+      http.post("/api/auth/login", () => HttpResponse.json(tokenPair(-10))),
+      http.get("/api/users/me", () => HttpResponse.json(TEST_USER)),
+      http.post("/api/auth/refresh", () => {
+        refreshCalls += 1;
+        return HttpResponse.json(tokenPair(-10));
+      }),
+    );
     const user = userEvent.setup();
     renderProbe();
     await user.click(screen.getByRole("button", { name: "login" }));
     await screen.findByText("status:authenticated");
-    await waitFor(() => expect(refreshCalls).toBe(1), { timeout: 3000 });
-    expect(screen.getByText("status:authenticated")).toBeInTheDocument();
+    await new Promise((resolve) => setTimeout(resolve, 700));
+    expect(refreshCalls).toBe(0);
   });
 
   it("retries an authenticated call once after refreshing on 401", async () => {
@@ -174,10 +198,12 @@ describe("AuthProvider", () => {
         return HttpResponse.json(tokenPair());
       }),
     );
-    const user = userEvent.setup();
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"], shouldAdvanceTime: true });
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     renderProbe();
     await user.click(screen.getByRole("button", { name: "login" }));
     await screen.findByText("status:authenticated");
+    await vi.advanceTimersByTimeAsync(REFRESH_MIN_DELAY_MS);
     await waitFor(() => expect(refreshEntered).toBe(1), { timeout: 3000 });
     await user.click(screen.getByRole("button", { name: "logout" }));
     await new Promise((resolve) => setTimeout(resolve, 500));

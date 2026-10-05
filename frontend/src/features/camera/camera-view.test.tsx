@@ -1,6 +1,6 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { REFRESH_TOKEN_KEY } from "@/features/auth/token-storage";
 import { renderWithProviders } from "@/test/render";
 import { VALID_REFRESH, server } from "@/test/server";
@@ -61,5 +61,30 @@ describe("CameraView", () => {
     const img = await screen.findByAltText(ALT);
     view.unmount();
     expect(img.getAttribute("src")).toBe("");
+  });
+
+  describe("fullscreen shortcut", () => {
+    afterEach(() => {
+      Reflect.deleteProperty(HTMLElement.prototype, "requestFullscreen");
+      Reflect.deleteProperty(document, "fullscreenEnabled");
+    });
+
+    it("ignores f with a modifier key and reacts to a plain f", async () => {
+      const requestFullscreen = vi.fn();
+      HTMLElement.prototype.requestFullscreen = requestFullscreen;
+      Object.defineProperty(document, "fullscreenEnabled", { value: true, configurable: true });
+      renderAuthenticated();
+      await screen.findByAltText(ALT);
+      fireEvent.keyDown(document, { key: "f", metaKey: true });
+      expect(requestFullscreen).not.toHaveBeenCalled();
+      fireEvent.keyDown(document, { key: "f" });
+      expect(requestFullscreen).toHaveBeenCalledTimes(1);
+    });
+
+    it("hides the fullscreen button when the browser has no fullscreen support", async () => {
+      renderAuthenticated();
+      await screen.findByAltText(ALT);
+      expect(screen.queryByRole("button", { name: "Plein écran" })).not.toBeInTheDocument();
+    });
   });
 });
