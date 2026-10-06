@@ -189,3 +189,14 @@ Trois teintes fixes, une par métrique, déclarées dans `index.css` (`--metric-
 ## README
 
 Section « Capteurs » : format du POST, clé `DEVICE_API_KEY`, `simulate-sensors`, section Mesures du Dashboard.
+
+## Évolution : ingestion MQTT et niveau de gaz en mV (2026-10-06)
+
+- L'abonné MQTT est en place (`infrastructure/mqtt/`) : connexion au broker `mosquitto` du compose,
+  abonnement `sentinel/+`, un message = un `RecordReading` (stockage + WebSocket), reconnexion
+  avec attentes croissantes, message malformé ignoré et journalisé. La route HTTP reste pour les
+  tests et le simulateur.
+- Le message réel de l'ESP intérieur est `{temperature, humidite, gaz_mv, etat_gaz}` ; le gaz est
+  un niveau brut en millivolts : la colonne, le champ d'API et le front passent de `gas_ppm` à
+  `gas_level` (migration 0003), l'interface affiche « mV ». `etat_gaz = "alerte"` → `gas_alert`,
+  `"prechauffage"` → niveau de gaz non stocké.

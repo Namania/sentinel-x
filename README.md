@@ -54,22 +54,29 @@ Les tests d'intégration utilisent la base `sentinel_test` créée par `.docker/
 
 ## Capteurs
 
-Les ESP32 envoient leurs mesures en HTTP (MQTT viendra plus tard) :
+Les ESP32 publient leurs mesures sur le broker MQTT du stack (service `mosquitto`, port 1883,
+config dans `.docker/mosquitto/mosquitto.conf`). L'API s'abonne à `sentinel/+` (réglages
+`MQTT_HOST`, `MQTT_PORT`, `MQTT_TOPIC` ; sans `MQTT_HOST`, pas d'abonné) : le dernier segment du
+topic est l'identifiant de l'appareil, et le message de l'ESP intérieur est
 
-```sh
-curl -X POST http://<hôte>:8080/api/sensors/readings \
-  -H "X-Device-Key: $DEVICE_API_KEY" -H "Content-Type: application/json" \
-  -d '{"device_id":"esp-interieur","gaz":{"mostGaz":false,"quantity":412},"temperature":{"humidity":48.5,"temp":22.9}}'
+```json
+{"temperature": 22.5, "humidite": 48, "gaz_mv": 1234, "etat_gaz": "ok"}
 ```
 
-`DEVICE_API_KEY` (16 caractères minimum) se règle dans `backend/.env`. Chaque mesure est stockée
-puis diffusée sur le WebSocket (`{"type":"sensor.reading","data":{…}}`). Historique :
+(`etat_gaz` ∈ `prechauffage` | `ok` | `alerte` ; pendant le préchauffage le niveau de gaz n'est pas
+stocké). Chaque mesure est horodatée par le serveur, stockée puis diffusée sur le WebSocket
+(`{"type":"sensor.reading","data":{…}}`), ce qui met le Dashboard à jour en direct. Le gaz est le
+niveau brut du MQ-2 en millivolts (`gas_level`), pas des ppm.
+
+Une route HTTP équivalente existe pour les tests : `POST /api/sensors/readings` avec l'en-tête
+`X-Device-Key` (`DEVICE_API_KEY`, 16 caractères minimum). Historique :
 `GET /api/sensors/readings?device_id=…&from=…&to=…&bucket=1m|5m|15m|1h`, dernière mesure par
 appareil : `GET /api/sensors/latest`, appareils : `GET /api/sensors/devices`.
 
 Sans matériel : `cd backend && uv run simulate-sensors` envoie des mesures factices toutes les 2 s
 (`--base-url`, `--device`, `--interval`, `--count`) ; `--backfill-minutes 1440` remplit 24 h
-d'historique (une mesure par minute) puis quitte. Les graphiques sont dans le Dashboard.
+d'historique (une mesure par minute) puis quitte. Tester le broker à la main :
+`docker compose exec mosquitto mosquitto_pub -t sentinel/esp1 -m '{"temperature":22.5,"humidite":48,"gaz_mv":1234,"etat_gaz":"ok"}'`.
 
 ## Front
 
