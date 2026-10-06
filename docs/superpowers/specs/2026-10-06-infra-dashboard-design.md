@@ -174,8 +174,8 @@ justifie aujourd'hui.
 
 - `server-api.ts` : type `ServerHealth` (miroir du JSON), `SERVER_HEALTH_PATH = "/server/health"`,
   `type ServerHealthResponse = { latest: ServerHealth | null; history: ServerHealth[] }`,
-  `appendHealth(history, sample, maxlen = 360)`, `pct(used, total)`, `formatBytes(n)` (Gio avec
-  une décimale), `formatUptime(s)` (« 3 j 4 h », « 4 h 12 min », « 12 min »).
+  `appendHealth(history, sample, maxlen = 360)`, `ratio(used, total)`, `formatPct`, `formatBytes(n)` et
+  `formatBytesPair(used, total)` (Gio avec une décimale), `formatTemperature`, `formatUptime(s)` (« 3 j 4 h », « 4 h 12 min », « 12 min »).
 - `use-server-health.ts` : charge `/server/health` au montage puis applique les événements
   `server.health`. Retourne `{ status: "loading" | "ready" | "error", latest, history, connected }`.
   Un événement reçu pendant le chargement est gardé et fusionné après la réponse HTTP (même
@@ -242,7 +242,7 @@ serveur, capteurs. La carte serveur a la même hauteur que la caméra sur grand 
 
 ### Couleurs
 
-Les jauges utilisent la teinte du thème (`--chart-1`, teal) ; la barre passe en `--destructive`
+Les jauges utilisent la teinte du thème (`--chart-3`, teal lisible sur fond clair comme sombre) ; la barre passe en `--destructive`
 au-delà de 85 % pour CPU, mémoire et disque, et au-delà de 70 °C pour la température. Les seuils sont des constantes dans `server-api.ts`. La
 couleur n'est jamais la seule indication : la valeur chiffrée est toujours affichée. Les trois
 graphiques de `/serveur` sont monochromes (une série chacun), pas de légende.
@@ -258,7 +258,7 @@ Backend (pytest, `tests/unit/`) :
   souscripteur MQTT) ; deux ticks → deux événements `server.health` diffusés et deux points dans
   l'historique ; un `SamplingError` au premier tick n'arrête pas la boucle ; annulation propre.
 - `test_health_history.py` : `maxlen` respecté, ordre chronologique.
-- `test_server_routes.py` (intégration, app de test) : 401 sans jeton ; `latest: null` et
+- `test_server_http.py` (intégration, app de test) : 401 sans jeton ; `latest: null` et
   `history: []` avant le premier échantillon ; forme JSON après un `append`.
 
 Frontend (Vitest + MSW) :
