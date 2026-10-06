@@ -15,7 +15,8 @@ export function AppShell() {
   const { pathname } = useLocation();
   return (
     <TooltipProvider>
-      <SidebarProvider>
+      {/* Wall screen first: collapsed on load, the user can still open it for the session. */}
+      <SidebarProvider defaultOpen={false}>
         <AppSidebar />
         <SidebarInset className="bg-background text-foreground">
           <header className="flex h-12 shrink-0 items-center gap-2 border-b px-3">

@@ -73,9 +73,9 @@ export function MetricsSection() {
 
   return (
     <section aria-labelledby="metrics-title" className="space-y-4">
-      <h1 id="metrics-title" className="text-2xl font-semibold">
-        Dashboard
-      </h1>
+      <h2 id="metrics-title" className="text-xl font-semibold">
+        Capteurs
+      </h2>
       <MetricsFilters
         devices={devices}
         deviceId={deviceId}

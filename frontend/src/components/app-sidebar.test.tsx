@@ -24,6 +24,15 @@ describe("AppSidebar", () => {
     expect(nav.getByRole("link", { name: "Serveur" })).toHaveAttribute("href", "/serveur");
   });
 
+  it("starts collapsed so the wall screen keeps the room for the content", async () => {
+    renderAuthenticated("/");
+    await sidebar();
+    expect(document.querySelector('[data-slot="sidebar"]')).toHaveAttribute(
+      "data-state",
+      "collapsed",
+    );
+  });
+
   it("marks the current page", async () => {
     renderAuthenticated("/camera");
     const nav = await sidebar();
@@ -34,6 +43,8 @@ describe("AppSidebar", () => {
   it("shows the account in the footer and logs out", async () => {
     const user = userEvent.setup();
     renderAuthenticated("/");
+    // Collapsed by default: open the sidebar to see the account details.
+    await user.click(await screen.findByRole("button", { name: "Afficher ou masquer le menu" }));
     const footer = within(await screen.findByRole("region", { name: "Mon compte" }));
     expect(footer.getByText(TEST_USER.email)).toBeInTheDocument();
     expect(footer.getByText("AL")).toBeInTheDocument();
@@ -43,14 +54,14 @@ describe("AppSidebar", () => {
     expect(localStorage.getItem(REFRESH_TOKEN_KEY)).toBeNull();
   });
 
-  it("shows only the S of the title once collapsed", async () => {
+  it("shows only the S of the title while collapsed, the full name once opened", async () => {
     const user = userEvent.setup();
     renderAuthenticated("/");
     await screen.findByRole("heading", { name: "Dashboard" });
-    expect(screen.getByText("SENTINEL-X")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Afficher ou masquer le menu" }));
     expect(screen.getByText("S")).toBeInTheDocument();
     expect(screen.queryByText("SENTINEL-X")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Afficher ou masquer le menu" }));
+    expect(screen.getByText("SENTINEL-X")).toBeInTheDocument();
   });
 
   it("marks the dashboard link as current on /", async () => {

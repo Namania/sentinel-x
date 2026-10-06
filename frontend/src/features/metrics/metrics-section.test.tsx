@@ -14,13 +14,14 @@ function renderDashboard() {
 }
 
 async function metrics() {
-  return within(await screen.findByRole("region", { name: "Dashboard" }));
+  return within(await screen.findByRole("region", { name: "Capteurs" }));
 }
 
-describe("Dashboard (metrics only)", () => {
-  it("has a single Dashboard heading and no status cards", async () => {
+describe("Sensors section of the Dashboard", () => {
+  it("is a level-2 section under the page's single level-1 heading, without status cards", async () => {
     renderDashboard();
-    await metrics();
+    const section = await metrics();
+    expect(section.getByRole("heading", { level: 2, name: "Capteurs" })).toBeInTheDocument();
     expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
     expect(screen.queryByRole("region", { name: "Caméra" })).not.toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "API" })).not.toBeInTheDocument();
