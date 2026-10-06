@@ -34,8 +34,9 @@ make down           # arrêter
 
 `make dev` combine `compose.yml` et `compose.dev.yml` : les images sont construites avec la
 cible `dev` des Dockerfiles, `backend/src` et `frontend/` sont montés dans les conteneurs et
-chaque modification est rechargée. Si les changements ne sont pas détectés à travers le
-montage, lance `VITE_USE_POLLING=true make dev`.
+chaque modification est rechargée. La détection des changements se fait par sondage (les
+événements de fichiers ne traversent pas toujours les montages Docker) ; `VITE_USE_POLLING=false
+make dev` revient aux événements natifs côté front.
 
 Sans Docker pour l'API :
 

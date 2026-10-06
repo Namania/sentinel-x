@@ -15,8 +15,9 @@ export default defineConfig({
       "/api": { target: apiTarget, rewrite: (p) => p.replace(/^\/api/, "") },
       "/ws": { target: wsTarget, ws: true },
     },
-    // Bind mounts on some Docker setups do not forward file events; polling is the fallback.
-    watch: { usePolling: process.env.VITE_USE_POLLING === "true" },
+    // Under compose.dev.yml the sources are bind-mounted and file events are not reliable:
+    // VITE_USE_POLLING=true switches to polling (every 300 ms) instead.
+    watch: { usePolling: process.env.VITE_USE_POLLING === "true", interval: 300 },
   },
   build: {
     // LAN-served SPA on a Raspberry Pi: the app chunk stays around 300 kB (gzip < 100 kB).

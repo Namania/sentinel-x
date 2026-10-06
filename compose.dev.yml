@@ -4,6 +4,9 @@ services:
   api:
     build:
       target: dev
+    environment:
+      # File events through Docker bind mounts are not reliable: poll instead of waiting for them.
+      WATCHFILES_FORCE_POLLING: "true"
     volumes:
       - ./backend/src:/app/src
       - ./backend/alembic:/app/alembic
@@ -19,8 +22,9 @@ services:
     environment:
       # The Vite proxy talks to the api container instead of a local uvicorn.
       API_PROXY_TARGET: http://api:8000
-      # Set to "true" if file changes are not picked up through the bind mount.
-      VITE_USE_POLLING: ${VITE_USE_POLLING:-false}
+      # File events through Docker bind mounts are not reliable: poll by default.
+      # Set to "false" to go back to native events.
+      VITE_USE_POLLING: ${VITE_USE_POLLING:-true}
     # !override replaces the production mapping (8080:80) instead of merging with it.
     ports: !override
       - "8080:5173"
