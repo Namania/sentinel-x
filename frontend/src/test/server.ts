@@ -1,7 +1,8 @@
-import { http, HttpResponse } from "msw";
+import { http, HttpResponse, ws } from "msw";
 import { setupServer } from "msw/node";
 import { decodeJwtPayload } from "@/features/auth/jwt";
 import { accessTokenExpiringIn, makeJwt } from "./jwt";
+import { bucketsFixture, DEVICE, makeReading, NOW_MS, readingsFixture } from "./sensors";
 
 export const TEST_USER = {
   id: "11111111-1111-4111-8111-111111111111",
@@ -33,8 +34,37 @@ function isValidAccessToken(token: string | null): boolean {
 
 const unauthenticated = () => HttpResponse.json({ detail: "Not authenticated" }, { status: 401 });
 
+export const sensorsLink = ws.link("ws://localhost:3000/ws");
+
+const BUCKET_MS: Record<string, number> = {
+  "1m": 60_000,
+  "5m": 300_000,
+  "15m": 900_000,
+  "1h": 3_600_000,
+};
+
+export const sensorHandlers = [
+  http.get("/api/sensors/devices", ({ request }) =>
+    isValidAccessToken(bearer(request))
+      ? HttpResponse.json([{ device_id: DEVICE, last_seen: new Date(NOW_MS).toISOString() }])
+      : unauthenticated(),
+  ),
+  http.get("/api/sensors/latest", ({ request }) =>
+    isValidAccessToken(bearer(request))
+      ? HttpResponse.json([makeReading({ recorded_at: new Date(NOW_MS).toISOString() })])
+      : unauthenticated(),
+  ),
+  http.get("/api/sensors/readings", ({ request }) => {
+    if (!isValidAccessToken(bearer(request))) return unauthenticated();
+    const bucket = new URL(request.url).searchParams.get("bucket");
+    if (bucket) return HttpResponse.json(bucketsFixture(4, NOW_MS, BUCKET_MS[bucket] ?? 60_000));
+    return HttpResponse.json(readingsFixture(5, NOW_MS));
+  }),
+];
+
 /** Mirrors the real backend: login/refresh issue pairs, protected routes need a live access token. */
 export const handlers = [
+  ...sensorHandlers,
   http.get("/api/health", () => HttpResponse.json({ status: "ok" })),
   http.post("/api/auth/login", async ({ request }) => {
     const body = (await request.json()) as { email: string; password: string };

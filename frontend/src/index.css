@@ -73,6 +73,9 @@
   --chart-4: oklch(0.511 0.096 186.391);
   --chart-5: oklch(0.437 0.078 188.216);
   --radius: 0.625rem;
+  --metric-temperature: #d9541e;
+  --metric-humidity: #2b6fd6;
+  --metric-gas: #0f8f6a;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: oklch(0.6 0.118 184.704);
@@ -115,6 +118,9 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+  --metric-temperature: #e8622f;
+  --metric-humidity: #4b8ae6;
+  --metric-gas: #2aa87f;
 }
 
 @layer base {
