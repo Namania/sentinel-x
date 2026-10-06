@@ -73,3 +73,28 @@ async def test_failing_connection_does_not_break_broadcast(hub):
 def test_disconnect_unknown_is_noop(hub):
     hub.disconnect(uuid4(), FakeConnection())
     assert hub.connection_count == 0
+
+
+async def test_a_stalled_connection_does_not_block_the_others():
+    import asyncio
+
+    from app.infrastructure.realtime.hub import ConnectionHub
+
+    class Stalled:
+        async def send_json(self, data):
+            await asyncio.sleep(10)
+
+    class Fast:
+        def __init__(self):
+            self.received = []
+
+        async def send_json(self, data):
+            self.received.append(data)
+
+    hub = ConnectionHub(send_timeout=0.05)
+    fast = Fast()
+    hub.connect(uuid4(), Stalled())
+    hub.connect(uuid4(), fast)
+    async with asyncio.timeout(1):
+        await hub.broadcast({"type": "x"})
+    assert fast.received == [{"type": "x"}]

@@ -5,6 +5,7 @@ from uuid import UUID
 
 from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 
 from app.domain.repositories import SensorReadingRepository, UserRepository
 from app.domain.sensor_reading import DeviceSummary, ReadingBucket, SensorReading
@@ -79,29 +80,26 @@ class SqlAlchemySensorReadingRepository(SensorReadingRepository):
         self, device_id: str, since: datetime, until: datetime, limit: int
     ) -> list[SensorReading]:
         m = SensorReadingModel
+        # Newest readings win when the window holds more than `limit`; returned oldest first.
         stmt = (
             select(m)
             .where(m.device_id == device_id, m.recorded_at >= since, m.recorded_at <= until)
-            .order_by(m.recorded_at)
+            .order_by(m.recorded_at.desc(), m.id.desc())
             .limit(limit)
         )
-        return [_reading_to_entity(row) for row in (await self._session.scalars(stmt)).all()]
+        rows = (await self._session.scalars(stmt)).all()
+        return [_reading_to_entity(row) for row in reversed(rows)]
 
     async def latest(self) -> list[SensorReading]:
         m = SensorReadingModel
-        last_seen = (
-            select(m.device_id, func.max(m.recorded_at).label("recorded_at"))
-            .group_by(m.device_id)
-            .subquery()
+        rank = (
+            func.row_number()
+            .over(partition_by=m.device_id, order_by=(m.recorded_at.desc(), m.id.desc()))
+            .label("rank")
         )
-        stmt = (
-            select(m)
-            .join(
-                last_seen,
-                (m.device_id == last_seen.c.device_id) & (m.recorded_at == last_seen.c.recorded_at),
-            )
-            .order_by(m.device_id)
-        )
+        ranked = select(m, rank).subquery()
+        aliased_model = aliased(m, ranked)
+        stmt = select(aliased_model).where(ranked.c.rank == 1).order_by(ranked.c.device_id)
         return [_reading_to_entity(row) for row in (await self._session.scalars(stmt)).all()]
 
     async def devices(self) -> list[DeviceSummary]:

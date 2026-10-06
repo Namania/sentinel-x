@@ -39,7 +39,8 @@ class InMemorySensorReadingRepository(SensorReadingRepository):
         rows = [
             r for r in self.readings if r.device_id == device_id and since <= r.recorded_at <= until
         ]
-        return sorted(rows, key=lambda r: r.recorded_at)[:limit]
+        ordered = sorted(rows, key=lambda r: r.recorded_at)
+        return ordered[-limit:] if limit else ordered
 
     async def latest(self):
         by_device: dict[str, SensorReading] = {}

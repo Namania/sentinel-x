@@ -44,7 +44,7 @@ async def test_list_respects_limit_and_window(uow):
         rows = await tx.readings.list(
             "esp-interieur", T0 + timedelta(minutes=1), T0 + timedelta(minutes=3), limit=2
         )
-    assert [r.recorded_at.minute for r in rows] == [1, 2]
+    assert [r.recorded_at.minute for r in rows] == [2, 3]  # the newest two of the window
 
 
 async def test_latest_returns_one_reading_per_device(uow):
@@ -111,3 +111,17 @@ async def test_aggregates_per_bucket(uow):
 async def test_aggregate_of_an_empty_window_is_empty(uow):
     async with uow as tx:
         assert await tx.readings.aggregate("esp-interieur", T0, T0 + timedelta(hours=1), 60) == []
+
+
+async def test_list_keeps_the_most_recent_readings_when_the_window_overflows_the_limit(uow):
+    await seed(uow, [reading(minutes=m, temp=float(m)) for m in range(5)])
+    async with uow as tx:
+        rows = await tx.readings.list("esp-interieur", T0, T0 + timedelta(hours=1), limit=2)
+    assert [r.temperature_c for r in rows] == [3.0, 4.0]  # oldest first, but the newest two
+
+
+async def test_latest_returns_a_single_row_when_two_readings_share_a_timestamp(uow):
+    await seed(uow, [reading(minutes=0, temp=20), reading(minutes=0, temp=21)])
+    async with uow as tx:
+        rows = await tx.readings.latest()
+    assert len(rows) == 1

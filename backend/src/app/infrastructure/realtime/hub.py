@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 from collections import defaultdict
 from typing import Any, Protocol
@@ -17,8 +18,9 @@ class Connection(Protocol):
 class ConnectionHub:
     """Registry of live WebSocket connections, keyed by user. One instance per process."""
 
-    def __init__(self) -> None:
+    def __init__(self, send_timeout: float = 1.0) -> None:
         self._connections: dict[UUID, set[Connection]] = defaultdict(set)
+        self._send_timeout = send_timeout
 
     def connect(self, user_id: UUID, connection: Connection) -> None:
         self._connections[user_id].add(connection)
@@ -46,6 +48,7 @@ class ConnectionHub:
 
     async def _safe_send(self, connection: Connection, event: Event) -> None:
         try:
-            await connection.send_json(event)
-        except Exception:  # noqa: BLE001 - a dead socket must not break the others
-            logger.debug("dropping event for a closed connection", exc_info=True)
+            # A stalled socket (full send buffer) must not hold up the sender or the other clients.
+            await asyncio.wait_for(connection.send_json(event), self._send_timeout)
+        except Exception:  # noqa: BLE001 - a dead or stalled socket must not break the others
+            logger.debug("dropping event for a closed or stalled connection", exc_info=True)

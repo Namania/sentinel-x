@@ -41,7 +41,7 @@ async def test_stores_the_reading_and_broadcasts_it():
     assert [r.id for r in uow.readings.readings] == [output.id]
     assert output.recorded_at == NOW  # server time when the device sends none
     assert bus.events == [{"type": "sensor.reading", "data": output.to_event()}]
-    assert bus.events[0]["data"]["recorded_at"] == "2026-10-06T09:00:00+00:00"
+    assert bus.events[0]["data"]["recorded_at"] == "2026-10-06T09:00:00Z"  # same shape as REST
     assert bus.events[0]["data"]["id"] == str(output.id)
 
 

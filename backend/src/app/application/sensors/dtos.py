@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
@@ -44,7 +44,8 @@ class ReadingOutput:
         """JSON-safe payload for the WebSocket event."""
         data = asdict(self)
         data["id"] = str(self.id)
-        data["recorded_at"] = self.recorded_at.isoformat()
+        # Same shape as the REST responses ("…Z"), whatever the source timezone.
+        data["recorded_at"] = self.recorded_at.astimezone(UTC).isoformat().replace("+00:00", "Z")
         return data
 
 
