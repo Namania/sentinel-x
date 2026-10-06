@@ -1,11 +1,15 @@
+from __future__ import annotations
+
+from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.domain.repositories import UserRepository
+from app.domain.repositories import SensorReadingRepository, UserRepository
+from app.domain.sensor_reading import DeviceSummary, ReadingBucket, SensorReading
 from app.domain.user import User
-from app.infrastructure.db.models import UserModel
+from app.infrastructure.db.models import SensorReadingModel, UserModel
 
 
 def _to_entity(row: UserModel) -> User:
@@ -36,3 +40,120 @@ class SqlAlchemyUserRepository(UserRepository):
                 created_at=user.created_at,
             )
         )
+
+
+def _reading_to_entity(row: SensorReadingModel) -> SensorReading:
+    return SensorReading(
+        id=row.id,
+        device_id=row.device_id,
+        recorded_at=row.recorded_at,
+        temperature_c=row.temperature_c,
+        humidity_pct=row.humidity_pct,
+        gas_ppm=row.gas_ppm,
+        gas_alert=row.gas_alert,
+    )
+
+
+def _float(value: object) -> float | None:
+    return None if value is None else float(value)  # asyncpg returns Decimal for avg()
+
+
+class SqlAlchemySensorReadingRepository(SensorReadingRepository):
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def add(self, reading: SensorReading) -> None:
+        self._session.add(
+            SensorReadingModel(
+                id=reading.id,
+                device_id=reading.device_id,
+                recorded_at=reading.recorded_at,
+                temperature_c=reading.temperature_c,
+                humidity_pct=reading.humidity_pct,
+                gas_ppm=reading.gas_ppm,
+                gas_alert=reading.gas_alert,
+            )
+        )
+
+    async def list(
+        self, device_id: str, since: datetime, until: datetime, limit: int
+    ) -> list[SensorReading]:
+        m = SensorReadingModel
+        stmt = (
+            select(m)
+            .where(m.device_id == device_id, m.recorded_at >= since, m.recorded_at <= until)
+            .order_by(m.recorded_at)
+            .limit(limit)
+        )
+        return [_reading_to_entity(row) for row in (await self._session.scalars(stmt)).all()]
+
+    async def latest(self) -> list[SensorReading]:
+        m = SensorReadingModel
+        last_seen = (
+            select(m.device_id, func.max(m.recorded_at).label("recorded_at"))
+            .group_by(m.device_id)
+            .subquery()
+        )
+        stmt = (
+            select(m)
+            .join(
+                last_seen,
+                (m.device_id == last_seen.c.device_id) & (m.recorded_at == last_seen.c.recorded_at),
+            )
+            .order_by(m.device_id)
+        )
+        return [_reading_to_entity(row) for row in (await self._session.scalars(stmt)).all()]
+
+    async def devices(self) -> list[DeviceSummary]:
+        m = SensorReadingModel
+        stmt = (
+            select(m.device_id, func.max(m.recorded_at)).group_by(m.device_id).order_by(m.device_id)
+        )
+        rows = (await self._session.execute(stmt)).all()
+        return [DeviceSummary(device_id=device, last_seen=seen) for device, seen in rows]
+
+    async def aggregate(
+        self, device_id: str, since: datetime, until: datetime, bucket_seconds: int
+    ) -> list[ReadingBucket]:
+        m = SensorReadingModel
+        epoch = func.extract("epoch", m.recorded_at)
+        bucket = func.to_timestamp(func.floor(epoch / bucket_seconds) * bucket_seconds).label(
+            "bucket_start"
+        )
+        stmt = (
+            select(
+                bucket,
+                func.count().label("count"),
+                func.avg(m.temperature_c),
+                func.min(m.temperature_c),
+                func.max(m.temperature_c),
+                func.avg(m.humidity_pct),
+                func.min(m.humidity_pct),
+                func.max(m.humidity_pct),
+                func.avg(m.gas_ppm),
+                func.min(m.gas_ppm),
+                func.max(m.gas_ppm),
+                func.sum(case((m.gas_alert, 1), else_=0)),
+            )
+            .where(m.device_id == device_id, m.recorded_at >= since, m.recorded_at <= until)
+            .group_by(bucket)
+            .order_by(bucket)
+        )
+        rows = (await self._session.execute(stmt)).all()
+        return [
+            ReadingBucket(
+                bucket_start=row[0],
+                count=row[1],
+                temperature_avg=_float(row[2]),
+                temperature_min=_float(row[3]),
+                temperature_max=_float(row[4]),
+                humidity_avg=_float(row[5]),
+                humidity_min=_float(row[6]),
+                humidity_max=_float(row[7]),
+                gas_avg=_float(row[8]),
+                gas_min=row[9],
+                gas_max=row[10],
+                gas_alerts=int(row[11] or 0),
+            )
+            for row in rows
+        ]

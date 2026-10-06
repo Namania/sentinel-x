@@ -5,7 +5,10 @@ from types import TracebackType
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.application.ports.unit_of_work import UnitOfWork
-from app.infrastructure.db.repositories import SqlAlchemyUserRepository
+from app.infrastructure.db.repositories import (
+    SqlAlchemySensorReadingRepository,
+    SqlAlchemyUserRepository,
+)
 
 
 class SqlAlchemyUnitOfWork(UnitOfWork):
@@ -16,6 +19,7 @@ class SqlAlchemyUnitOfWork(UnitOfWork):
     async def __aenter__(self) -> SqlAlchemyUnitOfWork:
         self._session = self._session_factory()
         self.users = SqlAlchemyUserRepository(self._session)
+        self.readings = SqlAlchemySensorReadingRepository(self._session)
         return self
 
     async def __aexit__(

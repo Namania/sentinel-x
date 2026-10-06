@@ -3,12 +3,14 @@ from __future__ import annotations
 import asyncio
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from datetime import datetime
 from uuid import UUID
 
 from app.application.ports.event_broadcaster import Event
 from app.application.ports.token_service import InvalidToken, TokenPayload
 from app.application.ports.unit_of_work import UnitOfWork
-from app.domain.repositories import UserRepository
+from app.domain.repositories import SensorReadingRepository, UserRepository
+from app.domain.sensor_reading import DeviceSummary, ReadingBucket, SensorReading
 from app.domain.user import User
 
 
@@ -26,9 +28,75 @@ class InMemoryUserRepository(UserRepository):
         self._users[user.id] = user
 
 
+class InMemorySensorReadingRepository(SensorReadingRepository):
+    def __init__(self) -> None:
+        self.readings: list[SensorReading] = []
+
+    async def add(self, reading: SensorReading) -> None:
+        self.readings.append(reading)
+
+    async def list(self, device_id, since, until, limit):
+        rows = [
+            r for r in self.readings if r.device_id == device_id and since <= r.recorded_at <= until
+        ]
+        return sorted(rows, key=lambda r: r.recorded_at)[:limit]
+
+    async def latest(self):
+        by_device: dict[str, SensorReading] = {}
+        for r in sorted(self.readings, key=lambda r: r.recorded_at):
+            by_device[r.device_id] = r
+        return list(by_device.values())
+
+    async def devices(self):
+        return [
+            DeviceSummary(device_id=r.device_id, last_seen=r.recorded_at)
+            for r in sorted(await self.latest(), key=lambda r: r.device_id)
+        ]
+
+    async def aggregate(self, device_id, since, until, bucket_seconds):
+        groups: dict[datetime, list[SensorReading]] = {}
+        for r in await self.list(device_id, since, until, limit=10_000):
+            start = datetime.fromtimestamp(
+                (r.recorded_at.timestamp() // bucket_seconds) * bucket_seconds,
+                tz=r.recorded_at.tzinfo,
+            )
+            groups.setdefault(start, []).append(r)
+
+        def stats(values):
+            values = [v for v in values if v is not None]
+            if not values:
+                return (None, None, None)
+            return (sum(values) / len(values), min(values), max(values))
+
+        buckets = []
+        for start in sorted(groups):
+            rows = groups[start]
+            t = stats([r.temperature_c for r in rows])
+            h = stats([r.humidity_pct for r in rows])
+            g = stats([r.gas_ppm for r in rows])
+            buckets.append(
+                ReadingBucket(
+                    bucket_start=start,
+                    count=len(rows),
+                    temperature_avg=t[0],
+                    temperature_min=t[1],
+                    temperature_max=t[2],
+                    humidity_avg=h[0],
+                    humidity_min=h[1],
+                    humidity_max=h[2],
+                    gas_avg=g[0],
+                    gas_min=g[1],
+                    gas_max=g[2],
+                    gas_alerts=sum(1 for r in rows if r.gas_alert),
+                )
+            )
+        return buckets
+
+
 class InMemoryUnitOfWork(UnitOfWork):
     def __init__(self) -> None:
         self.users = InMemoryUserRepository()
+        self.readings = InMemorySensorReadingRepository()
         self.committed = False
         self.rolled_back = False
 
