@@ -1,4 +1,4 @@
-import { LayoutDashboard, LogOut, Server, Video, type LucideIcon } from "lucide-react";
+import { BellRing, LayoutDashboard, LogOut, Server, Video, type LucideIcon } from "lucide-react";
 import { NavLink, useMatch } from "react-router";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -16,18 +16,27 @@ import {
   SidebarRail,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { useAlertCount } from "@/features/alerts/use-alert-count";
 import { useAuth } from "@/features/auth/use-auth";
 import { initials } from "@/lib/initials";
 
-type NavItemProps = { to: string; label: string; icon: LucideIcon; end: boolean };
+type NavItemProps = {
+  to: string;
+  label: string;
+  icon: LucideIcon;
+  end: boolean;
+  /** Open alert count shown as a red badge; hidden when 0 or unknown. */
+  badge?: number | null;
+};
 
 const NAV_ITEMS: NavItemProps[] = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
   { to: "/camera", label: "Caméra", icon: Video, end: false },
   { to: "/serveur", label: "Serveur", icon: Server, end: false },
+  { to: "/alertes", label: "Alertes", icon: BellRing, end: false },
 ];
 
-function NavItem({ to, label, icon: Icon, end }: NavItemProps) {
+function NavItem({ to, label, icon: Icon, end, badge }: NavItemProps) {
   const active = useMatch({ path: to, end }) !== null;
   const { isMobile, setOpenMobile } = useSidebar();
   return (
@@ -36,6 +45,7 @@ function NavItem({ to, label, icon: Icon, end }: NavItemProps) {
         <NavLink
           to={to}
           end={end}
+          className="relative"
           onClick={() => {
             // On a phone the menu is a sheet: close it once the destination is chosen.
             if (isMobile) setOpenMobile(false);
@@ -43,6 +53,14 @@ function NavItem({ to, label, icon: Icon, end }: NavItemProps) {
         >
           <Icon />
           <span>{label}</span>
+          {badge ? (
+            <span
+              aria-label={`${badge} ${badge > 1 ? "alertes ouvertes" : "alerte ouverte"}`}
+              className="bg-destructive ml-auto min-w-4 rounded-full px-1 text-center text-[10px] leading-4 font-semibold text-white tabular-nums group-data-[collapsible=icon]:absolute group-data-[collapsible=icon]:-top-0.5 group-data-[collapsible=icon]:-right-0.5 group-data-[collapsible=icon]:ml-0"
+            >
+              {badge}
+            </span>
+          ) : null}
         </NavLink>
       </SidebarMenuButton>
     </SidebarMenuItem>
@@ -52,6 +70,7 @@ function NavItem({ to, label, icon: Icon, end }: NavItemProps) {
 export function AppSidebar() {
   const { user, logout } = useAuth();
   const collapsed = useSidebar().state === "collapsed";
+  const openAlerts = useAlertCount();
 
   return (
     <Sidebar collapsible="icon">
@@ -68,7 +87,11 @@ export function AppSidebar() {
             <nav aria-label="Navigation principale">
               <SidebarMenu className="gap-px">
                 {NAV_ITEMS.map((item) => (
-                  <NavItem key={item.to} {...item} />
+                  <NavItem
+                    key={item.to}
+                    {...item}
+                    badge={item.to === "/alertes" ? openAlerts : null}
+                  />
                 ))}
               </SidebarMenu>
             </nav>

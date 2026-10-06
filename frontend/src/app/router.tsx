@@ -1,4 +1,5 @@
 import { createBrowserRouter, type RouteObject } from "react-router";
+import { AlertsPage } from "@/pages/alerts";
 import { CameraPage } from "@/pages/camera";
 import { DashboardPage } from "@/pages/dashboard";
 import { LoginPage } from "@/pages/login";
@@ -27,6 +28,7 @@ export const routes: RouteObject[] = [
           { index: true, element: <DashboardPage /> },
           { path: "/camera", element: <CameraPage /> },
           { path: "/serveur", element: <ServerPage /> },
+          { path: "/alertes", element: <AlertsPage /> },
         ],
       },
     ],

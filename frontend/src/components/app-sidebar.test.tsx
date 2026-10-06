@@ -1,10 +1,11 @@
 import { act, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { http, HttpResponse } from "msw";
 import { afterEach, describe, expect, it } from "vitest";
 import { routes } from "@/app/router";
 import { REFRESH_TOKEN_KEY } from "@/features/auth/token-storage";
 import { renderRoutes } from "@/test/render";
-import { TEST_USER, VALID_REFRESH } from "@/test/server";
+import { server, TEST_USER, VALID_REFRESH } from "@/test/server";
 
 function renderAuthenticated(path: string) {
   localStorage.setItem(REFRESH_TOKEN_KEY, VALID_REFRESH);
@@ -22,6 +23,14 @@ describe("AppSidebar", () => {
     expect(nav.getByRole("link", { name: "Dashboard" })).toHaveAttribute("href", "/");
     expect(nav.getByRole("link", { name: "Caméra" })).toHaveAttribute("href", "/camera");
     expect(nav.getByRole("link", { name: "Serveur" })).toHaveAttribute("href", "/serveur");
+    expect(nav.getByRole("link", { name: /^Alertes/ })).toHaveAttribute("href", "/alertes");
+  });
+
+  it("shows the number of open alerts on the Alertes entry", async () => {
+    server.use(http.get("/api/alerts/summary", () => HttpResponse.json({ open: 2 })));
+    renderAuthenticated("/");
+    const nav = await sidebar();
+    expect(await nav.findByLabelText("2 alertes ouvertes")).toBeInTheDocument();
   });
 
   it("starts collapsed so the wall screen keeps the room for the content", async () => {

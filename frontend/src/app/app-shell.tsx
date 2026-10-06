@@ -8,6 +8,7 @@ const TITLES: Record<string, string> = {
   "/": "Dashboard",
   "/camera": "Caméra",
   "/serveur": "Serveur",
+  "/alertes": "Alertes",
 };
 
 /** Layout of the authenticated area: sidebar + a thin top bar above the page. */
