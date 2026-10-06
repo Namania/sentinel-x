@@ -2,84 +2,25 @@ import { Maximize, Minimize } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/features/auth/use-auth";
 import { cn } from "@/lib/utils";
-import { CAMERA_STATUS_PATH, streamUrl, viewersLabel, type CameraStatus } from "./camera-api";
+import { viewersLabel } from "./camera-api";
+import { CameraStream, type StreamState } from "./camera-stream";
 
-export const RECONNECT_DELAY_MS = 2000;
 const IDLE_DELAY_MS = 2500;
 
-type ViewState = "checking" | "unconfigured" | "connecting" | "live";
-
 export function CameraView() {
-  const { accessToken, authFetch } = useAuth();
-  // The stream keeps the token it was opened with; only a reconnection uses a newer one.
-  const tokenRef = useRef(accessToken);
-  // Set when the stream should open but the session token has not been committed yet.
-  const pendingConnect = useRef(false);
-
-  const [state, setState] = useState<ViewState>("checking");
+  const [state, setState] = useState<StreamState>("checking");
   const [otherViewers, setOtherViewers] = useState(0);
-  const [src, setSrc] = useState<string | null>(null);
   const [fullscreen, setFullscreen] = useState(false);
   const [idle, setIdle] = useState(false);
-
-  const attemptRef = useRef(0);
-  const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const idleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // React nulls element refs before effect cleanups run, so keep the last <img> ourselves.
-  const lastImg = useRef<HTMLImageElement | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const connect = useCallback(() => {
-    if (!tokenRef.current) {
-      pendingConnect.current = true;
-      return;
-    }
-    pendingConnect.current = false;
-    attemptRef.current += 1;
-    setState("connecting");
-    setSrc(streamUrl(tokenRef.current, attemptRef.current));
-  }, []);
-
-  useEffect(() => {
-    tokenRef.current = accessToken;
-    if (pendingConnect.current && accessToken) connect();
-  }, [accessToken, connect]);
-
-  // Ask the backend whether a camera is configured, then open the stream.
-  useEffect(() => {
-    let cancelled = false;
-    authFetch<CameraStatus>(CAMERA_STATUS_PATH)
-      .then((status) => {
-        if (cancelled) return;
-        setOtherViewers(status.viewers);
-        if (status.configured) connect();
-        else setState("unconfigured");
-      })
-      .catch(() => {
-        // Status unknown (network hiccup): try the stream anyway, it will retry on error.
-        if (!cancelled) connect();
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [authFetch, connect]);
-
-  // Release the camera and pending timers on unmount.
   useEffect(() => {
     return () => {
-      if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
       if (idleTimer.current) clearTimeout(idleTimer.current);
-      if (lastImg.current) lastImg.current.src = "";
     };
   }, []);
-
-  const scheduleReconnect = () => {
-    setState("connecting");
-    if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
-    reconnectTimer.current = setTimeout(connect, RECONNECT_DELAY_MS);
-  };
 
   const toggleFullscreen = useCallback(() => {
     const element = containerRef.current;
@@ -135,29 +76,14 @@ export function CameraView() {
       onMouseMove={wake}
       onTouchStart={wake}
       onClick={wake}
+      onDoubleClick={toggleFullscreen}
       className={cn("relative flex flex-1 bg-black", idle && "cursor-none")}
     >
-      {src && (
-        <img
-          ref={(element) => {
-            if (element) lastImg.current = element;
-          }}
-          src={src}
-          alt="Flux vidéo de la caméra"
-          className="absolute inset-0 h-full w-full object-contain"
-          onLoad={() => setState("live")}
-          onError={scheduleReconnect}
-          onDoubleClick={toggleFullscreen}
-        />
-      )}
-      {state !== "live" && (
-        <p
-          role="status"
-          className="absolute inset-0 grid place-items-center text-sm text-neutral-400"
-        >
-          Connexion à la caméra…
-        </p>
-      )}
+      <CameraStream
+        className="flex-1"
+        onStateChange={setState}
+        onStatus={(status) => setOtherViewers(status.viewers)}
+      />
       <div
         className={cn(
           "absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-black/70 to-transparent p-4 transition-opacity",
