@@ -42,6 +42,16 @@ describe("AppSidebar", () => {
     expect(localStorage.getItem(REFRESH_TOKEN_KEY)).toBeNull();
   });
 
+  it("shows only the S of the title once collapsed", async () => {
+    const user = userEvent.setup();
+    renderAuthenticated("/");
+    await screen.findByRole("heading", { name: "Dashboard" });
+    expect(screen.getByText("SENTINEL-X")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Afficher ou masquer le menu" }));
+    expect(screen.getByText("S")).toBeInTheDocument();
+    expect(screen.queryByText("SENTINEL-X")).not.toBeInTheDocument();
+  });
+
   it("marks the dashboard link as current on /", async () => {
     renderAuthenticated("/");
     const nav = await sidebar();

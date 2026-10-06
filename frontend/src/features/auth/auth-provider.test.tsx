@@ -73,12 +73,44 @@ describe("AuthProvider", () => {
     expect(localStorage.getItem(REFRESH_TOKEN_KEY)).toBeNull();
   });
 
-  it("ends anonymous when the server is unreachable at startup", async () => {
+  it("ends anonymous but keeps the stored token when the server is unreachable at startup", async () => {
     server.use(http.post("/api/auth/refresh", () => HttpResponse.error()));
     localStorage.setItem(REFRESH_TOKEN_KEY, VALID_REFRESH);
     renderProbe();
     expect(await screen.findByText("status:anonymous")).toBeInTheDocument();
-    expect(localStorage.getItem(REFRESH_TOKEN_KEY)).toBeNull();
+    // A network failure (or a request aborted by a reload) is not a refusal: the next load retries.
+    expect(localStorage.getItem(REFRESH_TOKEN_KEY)).toBe(VALID_REFRESH);
+  });
+
+  it("keeps the stored token when the refresh fails with a server error", async () => {
+    server.use(http.post("/api/auth/refresh", () => HttpResponse.json({}, { status: 503 })));
+    localStorage.setItem(REFRESH_TOKEN_KEY, VALID_REFRESH);
+    renderProbe();
+    expect(await screen.findByText("status:anonymous")).toBeInTheDocument();
+    expect(localStorage.getItem(REFRESH_TOKEN_KEY)).toBe(VALID_REFRESH);
+  });
+
+  it("keeps an active session and retries when a proactive refresh hits a network error", async () => {
+    let refreshCalls = 0;
+    server.use(
+      http.post("/api/auth/login", () => HttpResponse.json(tokenPair(61))),
+      http.post("/api/auth/refresh", () => {
+        refreshCalls += 1;
+        return refreshCalls === 1 ? HttpResponse.error() : HttpResponse.json(tokenPair(900));
+      }),
+    );
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"], shouldAdvanceTime: true });
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    renderProbe();
+    await user.click(screen.getByRole("button", { name: "login" }));
+    await screen.findByText("status:authenticated");
+    await vi.advanceTimersByTimeAsync(REFRESH_MIN_DELAY_MS);
+    await waitFor(() => expect(refreshCalls).toBe(1), { timeout: 3000 });
+    expect(screen.getByText("status:authenticated")).toBeInTheDocument();
+    expect(localStorage.getItem(REFRESH_TOKEN_KEY)).toBe(VALID_REFRESH);
+    await vi.advanceTimersByTimeAsync(REFRESH_MIN_DELAY_MS);
+    await waitFor(() => expect(refreshCalls).toBe(2), { timeout: 3000 });
+    expect(screen.getByText("status:authenticated")).toBeInTheDocument();
   });
 
   it("logs in and stores the refresh token", async () => {

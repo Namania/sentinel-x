@@ -24,15 +24,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Bumped on every session change so stale async work can detect it and bail out.
   const sessionGeneration = useRef(0);
   const refreshInFlight = useRef<Promise<string | null> | null>(null);
+  const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Latest refreshSession, so a retry timer never calls a stale closure.
+  const refreshRef = useRef<() => Promise<string | null>>(() => Promise.resolve(null));
 
-  const clearSession = useCallback(() => {
-    writeRefreshToken(null);
+  const cancelRetry = () => {
+    if (retryTimer.current) clearTimeout(retryTimer.current);
+    retryTimer.current = null;
+  };
+
+  /** Forget the in-memory session (status → anonymous) but keep the stored refresh token. */
+  const dropSession = useCallback(() => {
+    cancelRetry();
     sessionGeneration.current += 1;
     accessTokenRef.current = null;
     userRef.current = null;
     setSession(null);
     setStatus("anonymous");
   }, []);
+
+  /** Log out for good: the stored refresh token goes too. */
+  const clearSession = useCallback(() => {
+    writeRefreshToken(null);
+    dropSession();
+  }, [dropSession]);
 
   const adopt = useCallback((pair: authApi.TokenPair, user: authApi.User) => {
     sessionGeneration.current += 1;
@@ -65,9 +80,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (sessionGeneration.current !== generation) return null;
         adopt(pair, user);
         return pair.access_token;
-      } catch {
+      } catch (error) {
         if (sessionGeneration.current !== generation) return null;
-        clearSession();
+        if (error instanceof ApiError && error.status === 401) {
+          // The refresh token itself was refused: the session is over.
+          clearSession();
+        } else if (userRef.current) {
+          // Network blip or server error while signed in: keep the session, try again later.
+          cancelRetry();
+          retryTimer.current = setTimeout(() => void refreshRef.current(), REFRESH_MIN_DELAY_MS);
+        } else {
+          // Could not restore (network down, request aborted by a reload…): give up for now
+          // but keep the stored token so the next load can try again.
+          dropSession();
+        }
         return null;
       }
     };
@@ -76,7 +102,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     refreshInFlight.current = promise;
     return promise;
-  }, [adopt, clearSession]);
+  }, [adopt, clearSession, dropSession]);
+
+  useEffect(() => {
+    refreshRef.current = refreshSession;
+  }, [refreshSession]);
+
+  // Drop any pending retry on unmount.
+  useEffect(() => cancelRetry, []);
 
   // 1. Restore the session once on startup.
   useEffect(() => {

@@ -298,9 +298,12 @@ Un essai jetable avec les versions courantes a imposé ces écarts, repris dans 
   (`docker compose restart api` pendant un flux) puis choisir : sondage périodique de
   `/camera/status` avec reconnexion quand `viewers` retombe à 0, ou lecture du flux via
   `fetch` + `ReadableStream` (ce qui retirerait aussi le token de l'URL).
-- **Perte de session sur coupure réseau.** La spec impose d'effacer le refresh token « dès qu'un
-  rafraîchissement échoue », donc aussi sur une simple erreur réseau 60 s avant l'expiration.
-  Proposition : n'effacer que sur 401 et réessayer plus tard sur `NetworkError`.
+- **Perte de session sur coupure réseau — résolu le 2026-10-06.** La règle « effacer le refresh
+  token dès qu'un rafraîchissement échoue » déconnectait aussi sur un simple rechargement de page
+  pendant la restauration (le `fetch` annulé devenait une erreur réseau, donc un « échec »).
+  Désormais : effacement du token uniquement sur 401 ; sur erreur réseau ou serveur, la session
+  active est conservée et un nouvel essai est programmé 30 s plus tard ; au démarrage, l'état
+  passe à anonyme mais le token reste pour le prochain chargement.
 
 ## Évolution : barre latérale et dashboard (2026-10-05)
 
