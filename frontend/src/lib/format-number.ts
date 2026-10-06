@@ -25,8 +25,9 @@ export function formatDelta(
 ): string | null {
   if (current === null || previous === null) return null;
   const delta = current - previous;
-  const sign = delta < 0 ? "−" : "+";
-  return `${sign}${formatter(digits).format(Math.abs(delta))}`;
+  const magnitude = formatter(digits).format(Math.abs(delta));
+  if (Number(magnitude.replace(",", ".").replace(/\u202f/g, "")) === 0) return magnitude;
+  return `${delta < 0 ? "−" : "+"}${magnitude}`;
 }
 
 const TIME = new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit" });

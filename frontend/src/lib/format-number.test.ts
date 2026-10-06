@@ -13,6 +13,11 @@ it("formats a delta with its sign", () => {
   expect(formatDelta(22.5, null, 1)).toBeNull();
 });
 
+it("shows a variation that rounds to zero without a sign", () => {
+  expect(formatDelta(43.2, 43.4, 0)).toBe("0");
+  expect(formatDelta(22.51, 22.49, 1)).toBe("0,0");
+});
+
 it("formats a time of day", () => {
   expect(formatTime(Date.UTC(2026, 9, 6, 9, 5, 0))).toBe("11:05"); // tests run in Europe/Paris
 });

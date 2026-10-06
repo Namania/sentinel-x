@@ -66,7 +66,12 @@ export function TemperatureChart({ points }: { points: MetricPoint[] }) {
             tickFormatter={formatTime}
             {...axisProps}
           />
-          <YAxis width={40} tickFormatter={(v) => formatNumber(Number(v), 0)} {...axisProps} />
+          <YAxis
+            width={40}
+            domain={["dataMin - 1", "dataMax + 1"]}
+            tickFormatter={(v) => formatNumber(Number(v), 0)}
+            {...axisProps}
+          />
           <ChartTooltip content={<ChartTooltipContent labelFormatter={tooltipLabel} />} />
           <Line
             dataKey="temperature"
