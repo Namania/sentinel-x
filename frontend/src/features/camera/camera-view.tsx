@@ -1,10 +1,12 @@
-import { Maximize, Minimize } from "lucide-react";
+import { Maximize, Minimize, ShieldAlert } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { viewersLabel } from "./camera-api";
 import { CameraStream, type StreamState } from "./camera-stream";
+import { DetectionOverlay } from "./detection-overlay";
+import { useVisionStream } from "./use-vision-stream";
 
 const IDLE_DELAY_MS = 2500;
 
@@ -15,6 +17,9 @@ export function CameraView() {
   const [idle, setIdle] = useState(false);
   const idleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const imgRef = useRef<HTMLImageElement | null>(null);
+
+  const snapshot = useVisionStream(state === "live");
 
   useEffect(() => {
     return () => {
@@ -83,7 +88,17 @@ export function CameraView() {
         className="flex-1"
         onStateChange={setState}
         onStatus={(status) => setOtherViewers(status.viewers)}
+        imageRef={imgRef}
       />
+      {state === "live" && <DetectionOverlay snapshot={snapshot} imageRef={imgRef} />}
+      {snapshot?.has_intruder && (
+        <div className="absolute inset-x-0 top-0 flex justify-center p-3">
+          <Badge className="gap-1.5 bg-red-600 text-white">
+            <ShieldAlert className="size-4" />
+            INTRUS DÉTECTÉ
+          </Badge>
+        </div>
+      )}
       <div
         className={cn(
           "absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-black/70 to-transparent p-4 transition-opacity",

@@ -9,16 +9,29 @@ ENV UV_COMPILE_BYTECODE=1 \
 
 WORKDIR /app
 
-COPY pyproject.toml uv.lock ./
-RUN uv sync --frozen --no-dev --no-install-project
-
-COPY src ./src
-COPY alembic.ini ./
-COPY alembic ./alembic
-RUN uv sync --frozen --no-dev
-
-RUN useradd --create-home app && chown -R app:app /app
+RUN useradd --create-home app && chown app:app /app
 USER app
+
+# Set to "true" to also install YOLO (person detection). Heavy (torch, opencv...): off by
+# default so the ordinary API image stays small and fast to build.
+ARG VISION=false
+# Set to "true" (with VISION=true) to also install DeepFace (face whitelist identification).
+# Extra heavy on top of VISION: pulls in TensorFlow. Off by default even when VISION=true.
+ARG VISION_IDENTIFY=false
+
+COPY --chown=app:app pyproject.toml uv.lock ./
+RUN --mount=type=cache,target=/root/.cache/uv,uid=1000,gid=1000 \
+    if [ "$VISION_IDENTIFY" = "true" ]; then uv sync --frozen --no-dev --no-install-project --extra vision-identify; \
+    elif [ "$VISION" = "true" ]; then uv sync --frozen --no-dev --no-install-project --extra vision; \
+    else uv sync --frozen --no-dev --no-install-project; fi
+
+COPY --chown=app:app src ./src
+COPY --chown=app:app alembic.ini ./
+COPY --chown=app:app alembic ./alembic
+RUN --mount=type=cache,target=/root/.cache/uv,uid=1000,gid=1000 \
+    if [ "$VISION_IDENTIFY" = "true" ]; then uv sync --frozen --no-dev --extra vision-identify; \
+    elif [ "$VISION" = "true" ]; then uv sync --frozen --no-dev --extra vision; \
+    else uv sync --frozen --no-dev; fi
 
 EXPOSE 8000
 

@@ -17,6 +17,8 @@ type Props = {
   onStatus?: (status: CameraStatus) => void;
   className?: string;
   stallMs?: number;
+  /** Receives the stream's <img>, e.g. to draw detection boxes over it. */
+  imageRef?: React.RefObject<HTMLImageElement | null>;
 };
 
 /**
@@ -29,7 +31,13 @@ type Props = {
  * when no frame arrived for `stallMs`; releases everything on unmount. Renders nothing when no
  * camera is configured; the parent decides what to say.
  */
-export function CameraStream({ onStateChange, onStatus, className, stallMs = STALL_MS }: Props) {
+export function CameraStream({
+  onStateChange,
+  onStatus,
+  className,
+  stallMs = STALL_MS,
+  imageRef,
+}: Props) {
   const { accessToken, authFetch } = useAuth();
   const tokenRef = useRef(accessToken);
   // Set when the stream should open but the session token has not been committed yet.
@@ -164,6 +172,10 @@ export function CameraStream({ onStateChange, onStatus, className, stallMs = STA
     <div className={cn("relative bg-black", className)}>
       {src && (
         <img
+          ref={(element) => {
+            if (element) lastImg.current = element;
+            if (imageRef) imageRef.current = element;
+          }}
           src={src}
           alt="Flux vidéo de la caméra"
           className="absolute inset-0 h-full w-full object-contain"

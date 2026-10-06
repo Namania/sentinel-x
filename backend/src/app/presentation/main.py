@@ -2,6 +2,7 @@ import asyncio
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 
@@ -33,7 +34,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         tasks = [
             task
-            for task in (_start_mqtt_subscriber(app, settings), _start_server_health(app, settings))
+            for task in (
+                _start_mqtt_subscriber(app, settings),
+                _start_server_health(app, settings),
+                _start_vision_worker(app, settings),
+            )
             if task is not None
         ]
         await _announce_siren(app)
@@ -137,3 +142,38 @@ async def _announce_siren(app: FastAPI) -> None:
         await app.state.siren.refresh()
     except Exception:  # noqa: BLE001 - the database may not be ready; the first alert will refresh
         logger.warning("siren: initial state not published", exc_info=True)
+
+def _start_vision_worker(app: FastAPI, settings: Settings) -> asyncio.Task[None] | None:
+    """Person detection (and optional face identification) on the camera stream."""
+    if not settings.vision_enabled:
+        return None
+    camera_relay: CameraRelay | None = app.state.camera_relay
+    if camera_relay is None:
+        logger.warning("VISION_ENABLED is set but no camera is configured; vision worker disabled")
+        return None
+
+    # Imported lazily: ultralytics (and, if identification is on, deepface) are heavy and only
+    # needed when vision is enabled.
+    from app.infrastructure.vision.detection_worker import DetectionWorker
+    from app.infrastructure.vision.yolo_face_analyzer import YoloFaceAnalyzer
+
+    whitelist = None
+    if settings.vision_identify_faces:
+        # deepface (and the TensorFlow it requires) is only imported in this branch.
+        from app.infrastructure.vision.face_whitelist import FaceWhitelist
+
+        whitelist = FaceWhitelist.load(Path(settings.vision_known_faces_dir))
+
+    analyzer = YoloFaceAnalyzer(whitelist)
+    worker = DetectionWorker(
+        frames=camera_relay.frames(),
+        analyzer=analyzer,
+        broadcaster=app.state.hub,
+        interval_seconds=settings.vision_interval_seconds,
+    )
+    logger.info(
+        "vision worker starting (face identification %s, %d known face(s))",
+        "on" if whitelist is not None else "off",
+        whitelist.size if whitelist is not None else 0,
+    )
+    return asyncio.create_task(worker.run(), name="vision-detection-worker")

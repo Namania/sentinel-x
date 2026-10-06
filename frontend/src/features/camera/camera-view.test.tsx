@@ -3,7 +3,7 @@ import { http, HttpResponse } from "msw";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { REFRESH_TOKEN_KEY } from "@/features/auth/token-storage";
 import { renderWithProviders } from "@/test/render";
-import { fakeJpeg, mjpegResponse, server, VALID_REFRESH } from "@/test/server";
+import { fakeJpeg, mjpegResponse, sensorsLink, VALID_REFRESH, server } from "@/test/server";
 import { CameraView } from "./camera-view";
 
 const ALT = "Flux vidéo de la caméra";
@@ -62,6 +62,65 @@ describe("CameraView", () => {
           : mjpegResponse([fakeJpeg("later")]);
       }),
     );
+  it("shows the intruder badge when the vision worker reports an unrecognised face", async () => {
+    server.use(
+      sensorsLink.addEventListener("connection", ({ client }) => {
+        client.send(
+          JSON.stringify({
+            type: "vision.detection",
+            data: {
+              analyzed_at: "2026-10-06T12:00:00Z",
+              has_intruder: true,
+              people: [
+                {
+                  box: { x: 10, y: 20, width: 30, height: 40 },
+                  confidence: 0.8,
+                  identity: null,
+                  identity_confidence: null,
+                  is_intruder: true,
+                },
+              ],
+            },
+          }),
+        );
+      }),
+    );
+    renderAuthenticated();
+    const img = await screen.findByAltText(ALT);
+    fireEvent.load(img);
+    expect(await screen.findByText("INTRUS DÉTECTÉ")).toBeInTheDocument();
+  });
+
+  it("does not show the intruder badge once every detected face is known", async () => {
+    server.use(
+      sensorsLink.addEventListener("connection", ({ client }) => {
+        client.send(
+          JSON.stringify({
+            type: "vision.detection",
+            data: {
+              analyzed_at: "2026-10-06T12:00:00Z",
+              has_intruder: false,
+              people: [
+                {
+                  box: { x: 10, y: 20, width: 30, height: 40 },
+                  confidence: 0.8,
+                  identity: "kevan",
+                  identity_confidence: 0.9,
+                },
+              ],
+            },
+          }),
+        );
+      }),
+    );
+    renderAuthenticated();
+    const img = await screen.findByAltText(ALT);
+    fireEvent.load(img);
+    await screen.findByText("EN DIRECT");
+    expect(screen.queryByText("INTRUS DÉTECTÉ")).not.toBeInTheDocument();
+  });
+
+  it("reconnects once with a fresh url after a burst of errors", async () => {
     renderAuthenticated();
     expect(screen.getByRole("status")).toHaveTextContent("Connexion à la caméra…");
     const img = await screen.findByAltText(ALT, {}, { timeout: 4000 });

@@ -21,6 +21,15 @@ class Settings(BaseSettings):
     # MJPEG stream of the ESP32 camera, e.g. http://192.168.1.50:81/stream
     camera_stream_url: str | None = None
 
+    # Person detection (YOLO) against the relayed camera stream.
+    vision_enabled: bool = False
+    vision_interval_seconds: float = 1.0
+    # Whether to also identify each detected person against the known-faces whitelist
+    # (DeepFace/ArcFace). Off by default: it pulls in TensorFlow (500MB+) on top of
+    # ultralytics/PyTorch, which is unnecessary weight if all you need is "someone is there".
+    vision_identify_faces: bool = False
+    vision_known_faces_dir: str = "data/known_faces"
+
     # Shared secret the ESP32 devices send in X-Device-Key to post sensor readings.
     device_api_key: str | None = None
 

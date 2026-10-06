@@ -1,1 +1,6 @@
 backend/.env
+
+# Real teammate photos used by the face whitelist are personal data - never commit them.
+backend/data/known_faces/*
+!backend/data/known_faces/.gitkeep
+!backend/data/known_faces/README.md
