@@ -12,3 +12,7 @@ class InvalidCredentials(DomainError):
 
 class UserNotFound(DomainError):
     pass
+
+
+class InvalidReading(DomainError):
+    """A sensor reading violates the accepted bounds."""
