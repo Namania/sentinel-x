@@ -18,6 +18,7 @@ dependencies = [
 
 [project.scripts]
 create-user = "app.presentation.cli:create_user_command"
+simulate-sensors = "app.presentation.simulate:simulate_sensors_command"
 
 [dependency-groups]
 dev = [
