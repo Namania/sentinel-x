@@ -19,6 +19,8 @@ export type Alert = {
 export const ALERTS_PATH = "/alerts";
 export const ALERTS_SUMMARY_PATH = "/alerts/summary";
 export const ALERTS_LIMIT = 200;
+/** Resolved alerts shown on the dashboard card, after the open ones. */
+export const RESOLVED_SHOWN = 5;
 
 export function alertsPath(limit = ALERTS_LIMIT): string {
   return `${ALERTS_PATH}?limit=${limit}`;
