@@ -4,7 +4,11 @@ import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/s
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeToggle } from "@/features/theme/theme-toggle";
 
-const TITLES: Record<string, string> = { "/": "Dashboard", "/camera": "Caméra" };
+const TITLES: Record<string, string> = {
+  "/": "Dashboard",
+  "/camera": "Caméra",
+  "/serveur": "Serveur",
+};
 
 /** Layout of the authenticated area: sidebar + a thin top bar above the page. */
 export function AppShell() {

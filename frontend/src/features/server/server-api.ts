@@ -68,3 +68,15 @@ export function formatUptime(seconds: number): string {
 export function loadLabel(h: ServerHealth): string {
   return `Charge ${formatNumber(h.load_1, 2)} · ${formatNumber(h.load_5, 2)} · ${formatNumber(h.load_15, 2)}`;
 }
+
+export type ServerPoint = { time: number; cpu: number | null; memGib: number; temp: number | null };
+
+/** Chart points of the `/serveur` page; unknown CPU and temperature stay null (gaps, not zeros). */
+export function toServerPoints(history: ServerHealth[]): ServerPoint[] {
+  return history.map((h) => ({
+    time: Date.parse(h.recorded_at),
+    cpu: h.cpu_pct,
+    memGib: h.mem_used_bytes / 2 ** 30,
+    temp: h.temperature_c,
+  }));
+}

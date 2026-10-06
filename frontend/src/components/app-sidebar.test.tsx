@@ -16,11 +16,12 @@ async function sidebar() {
 }
 
 describe("AppSidebar", () => {
-  it("links to the dashboard and the camera", async () => {
+  it("links to the dashboard, the camera and the server", async () => {
     renderAuthenticated("/");
     const nav = await sidebar();
     expect(nav.getByRole("link", { name: "Dashboard" })).toHaveAttribute("href", "/");
     expect(nav.getByRole("link", { name: "Caméra" })).toHaveAttribute("href", "/camera");
+    expect(nav.getByRole("link", { name: "Serveur" })).toHaveAttribute("href", "/serveur");
   });
 
   it("marks the current page", async () => {

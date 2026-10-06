@@ -1,4 +1,4 @@
-import { LayoutDashboard, LogOut, Video, type LucideIcon } from "lucide-react";
+import { LayoutDashboard, LogOut, Server, Video, type LucideIcon } from "lucide-react";
 import { NavLink, useMatch } from "react-router";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,7 @@ type NavItemProps = { to: string; label: string; icon: LucideIcon; end: boolean 
 const NAV_ITEMS: NavItemProps[] = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
   { to: "/camera", label: "Caméra", icon: Video, end: false },
+  { to: "/serveur", label: "Serveur", icon: Server, end: false },
 ];
 
 function NavItem({ to, label, icon: Icon, end }: NavItemProps) {
