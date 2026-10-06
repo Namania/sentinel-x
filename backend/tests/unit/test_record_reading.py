@@ -4,6 +4,7 @@ import pytest
 
 from app.application.sensors.dtos import ReadingInput
 from app.application.sensors.record import RecordReading
+from app.domain.alert import Thresholds
 from app.domain.errors import InvalidReading
 from tests.unit.fakes import InMemoryUnitOfWork
 
@@ -72,3 +73,80 @@ async def test_implausible_device_timestamps_fall_back_to_server_time():
     assert (
         await use_case.execute(make_input(recorded_at=slight_drift))
     ).recorded_at == slight_drift
+
+
+def events_of(bus, kind):
+    return [e for e in bus.events if e["type"] == kind]
+
+
+async def test_out_of_bounds_reading_opens_an_alert_after_the_reading_event():
+    uow, bus = InMemoryUnitOfWork(), RecordingBroadcaster()
+    await RecordReading(uow, bus, clock=lambda: NOW).execute(make_input(temperature_c=30.4))
+    assert [e["type"] for e in bus.events] == ["sensor.reading", "alert.opened"]
+    opened = bus.events[1]["data"]
+    assert (opened["metric"], opened["direction"], opened["threshold"]) == (
+        "temperature",
+        "high",
+        30.0,
+    )
+    assert opened["opened_at"] == "2026-10-06T09:00:00Z"
+    assert opened["resolved_at"] is None
+    assert len(uow.alerts.alerts) == 1 and uow.alerts.alerts[0].is_open
+
+
+async def test_a_worse_reading_updates_the_peak_without_an_event():
+    uow, bus = InMemoryUnitOfWork(), RecordingBroadcaster()
+    use_case = RecordReading(uow, bus, clock=lambda: NOW)
+    await use_case.execute(make_input(temperature_c=30.4))
+    await use_case.execute(make_input(temperature_c=31.2))
+    assert len(events_of(bus, "alert.opened")) == 1
+    assert len(uow.alerts.alerts) == 1
+    assert uow.alerts.alerts[0].peak_value == 31.2
+
+
+async def test_just_under_the_bound_keeps_the_alert_open():
+    uow, bus = InMemoryUnitOfWork(), RecordingBroadcaster()
+    use_case = RecordReading(uow, bus, clock=lambda: NOW)
+    await use_case.execute(make_input(temperature_c=30.4))
+    await use_case.execute(make_input(temperature_c=29.8))
+    assert events_of(bus, "alert.resolved") == []
+    assert uow.alerts.alerts[0].is_open
+
+
+async def test_back_under_the_margin_resolves_with_the_reading_time_and_value():
+    uow, bus = InMemoryUnitOfWork(), RecordingBroadcaster()
+    use_case = RecordReading(uow, bus, clock=lambda: NOW)
+    await use_case.execute(make_input(temperature_c=30.4))
+    later = NOW + timedelta(minutes=4)
+    await use_case.execute(make_input(temperature_c=29.4, recorded_at=later))
+    resolved = events_of(bus, "alert.resolved")
+    assert len(resolved) == 1
+    assert resolved[0]["data"]["resolved_at"] == "2026-10-06T09:04:00Z"
+    assert resolved[0]["data"]["resolved_value"] == 29.4
+    assert not uow.alerts.alerts[0].is_open
+
+
+async def test_missing_value_changes_nothing():
+    uow, bus = InMemoryUnitOfWork(), RecordingBroadcaster()
+    use_case = RecordReading(uow, bus, clock=lambda: NOW)
+    await use_case.execute(make_input(temperature_c=30.4))
+    await use_case.execute(make_input(temperature_c=None))
+    assert [e["type"] for e in bus.events] == ["sensor.reading", "alert.opened", "sensor.reading"]
+    assert uow.alerts.alerts[0].is_open
+
+
+async def test_two_metrics_out_of_bounds_open_two_alerts():
+    uow, bus = InMemoryUnitOfWork(), RecordingBroadcaster()
+    await RecordReading(uow, bus, clock=lambda: NOW).execute(
+        make_input(temperature_c=31.0, gas_level=1800, gas_alert=True)
+    )
+    assert [e["data"]["metric"] for e in events_of(bus, "alert.opened")] == ["temperature", "gas"]
+
+
+async def test_custom_thresholds_are_honoured():
+    uow, bus = InMemoryUnitOfWork(), RecordingBroadcaster()
+    t = Thresholds(temperature=(10.0, 25.0), humidity=(20.0, 70.0), gas_max=None)
+    await RecordReading(uow, bus, thresholds=t, clock=lambda: NOW).execute(
+        make_input(temperature_c=26.0)
+    )
+    assert len(events_of(bus, "alert.opened")) == 1

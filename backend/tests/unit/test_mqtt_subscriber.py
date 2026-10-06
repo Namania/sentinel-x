@@ -94,10 +94,11 @@ async def test_stores_and_broadcasts_each_message(world):
     broker.push(
         "sentinel/esp1", b'{"temperature":22.6,"humidite":47,"gaz_mv":2000,"etat_gaz":"alerte"}'
     )
-    task = await run_until(subscriber, lambda: len(bus.events) == 2)
+    # The second message carries the device's gas alert: a reading event plus an alert event.
+    task = await run_until(subscriber, lambda: len(bus.events) >= 3)
     assert broker.subscriptions == ["sentinel/+"]
     assert [r.gas_level for r in uow.readings.readings] == [1234, 2000]
-    assert bus.events[1]["type"] == "sensor.reading"
+    assert [e["type"] for e in bus.events] == ["sensor.reading", "sensor.reading", "alert.opened"]
     assert bus.events[1]["data"]["gas_alert"] is True
     task.cancel()
 

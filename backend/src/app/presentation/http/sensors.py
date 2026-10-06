@@ -8,7 +8,13 @@ from pydantic import BaseModel, Field
 from app.application.sensors.dtos import BucketOutput, DeviceOutput, ReadingInput, ReadingOutput
 from app.application.sensors.queries import GetLatestReadings, GetReadings, ListDevices
 from app.application.sensors.record import RecordReading
-from app.presentation.dependencies import CurrentUserIdDep, DeviceKeyDep, HubDep, UowDep
+from app.presentation.dependencies import (
+    CurrentUserIdDep,
+    DeviceKeyDep,
+    HubDep,
+    ThresholdsDep,
+    UowDep,
+)
 
 router = APIRouter(prefix="/sensors", tags=["sensors"])
 
@@ -125,9 +131,10 @@ def _utc(moment: datetime | None, default: datetime) -> datetime:
     "serveur.",
 )
 async def post_reading(
-    body: ReadingRequest, _: DeviceKeyDep, uow: UowDep, hub: HubDep
+    body: ReadingRequest, _: DeviceKeyDep, uow: UowDep, hub: HubDep, thresholds: ThresholdsDep
 ) -> ReadingResponse:
-    output = await RecordReading(uow=uow, broadcaster=hub).execute(body.to_input())
+    use_case = RecordReading(uow=uow, broadcaster=hub, thresholds=thresholds)
+    output = await use_case.execute(body.to_input())
     return ReadingResponse.from_output(output)
 
 

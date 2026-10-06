@@ -10,6 +10,7 @@ from app.application.ports.password_hasher import PasswordHasher
 from app.application.ports.token_service import InvalidToken, TokenService
 from app.application.ports.unit_of_work import UnitOfWork
 from app.application.server.health import HealthHistory
+from app.domain.alert import Thresholds
 from app.infrastructure.camera.relay import CameraRelay
 from app.infrastructure.config import Settings
 from app.infrastructure.db.unit_of_work import SqlAlchemyUnitOfWork
@@ -50,6 +51,10 @@ def get_camera_relay(conn: HTTPConnection) -> CameraRelay | None:
 
 def get_server_health_history(conn: HTTPConnection) -> HealthHistory:
     return conn.app.state.server_health
+
+
+def get_thresholds(conn: HTTPConnection) -> Thresholds:
+    return conn.app.state.thresholds
 
 
 def decode_access_token(token: str | None, tokens: TokenService) -> UUID | None:
@@ -131,3 +136,4 @@ StreamUserIdDep = Annotated[UUID, Depends(get_current_user_id_from_header_or_que
 CameraRelayDep = Annotated[CameraRelay | None, Depends(get_camera_relay)]
 DeviceKeyDep = Annotated[None, Depends(require_device_key)]
 ServerHealthHistoryDep = Annotated[HealthHistory, Depends(get_server_health_history)]
+ThresholdsDep = Annotated[Thresholds, Depends(get_thresholds)]

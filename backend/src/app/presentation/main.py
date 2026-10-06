@@ -52,6 +52,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         lifespan=lifespan,
     )
     app.state.settings = settings
+    app.state.thresholds = settings.thresholds()
     app.state.session_factory = create_session_factory(engine)
     app.state.hub = ConnectionHub()
     app.state.camera_relay = _build_camera_relay(settings)
@@ -84,6 +85,7 @@ def _start_mqtt_subscriber(app: FastAPI, settings: Settings) -> asyncio.Task[Non
         topic=settings.mqtt_topic,
         uow_factory=lambda: SqlAlchemyUnitOfWork(app.state.session_factory),
         broadcaster=app.state.hub,
+        thresholds=app.state.thresholds,
     )
     return asyncio.create_task(subscriber.run(), name="mqtt-subscriber")
 
