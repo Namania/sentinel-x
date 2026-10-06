@@ -104,6 +104,7 @@ export function TemperatureChart({ points }: { points: MetricPoint[] }) {
             dot={false}
             activeDot={{ r: 5 }}
             connectNulls
+            isAnimationActive={false}
           />
         </LineChart>
       </ChartContainer>
@@ -138,6 +139,7 @@ export function HumidityChart({ points }: { points: MetricPoint[] }) {
             fillOpacity={0.2}
             strokeWidth={2}
             connectNulls
+            isAnimationActive={false}
           />
         </AreaChart>
       </ChartContainer>
@@ -158,7 +160,7 @@ export function GasChart({ points }: { points: MetricPoint[] }) {
           <XAxis dataKey="time" tickFormatter={formatTime} {...axisProps} />
           <YAxis width={48} tickFormatter={(v) => formatNumber(Number(v), 0)} {...axisProps} />
           <ChartTooltip content={<ChartTooltipContent labelFormatter={tooltipLabel} />} />
-          {/* No bar animation: labels only appear once it ends, and live data redraws often. */}
+          {/* No animations: live data redraws every few seconds, and bar labels only appear once it ends. */}
           <Bar
             dataKey="gas"
             fill="var(--color-gas)"
