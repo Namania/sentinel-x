@@ -3,6 +3,7 @@ import { setupServer } from "msw/node";
 import { decodeJwtPayload } from "@/features/auth/jwt";
 import { accessTokenExpiringIn, makeJwt } from "./jwt";
 import { bucketsFixture, DEVICE, makeReading, NOW_MS, readingsFixture } from "./sensors";
+import { healthFixture, SERVER_NOW_MS } from "./server-health";
 
 export const TEST_USER = {
   id: "11111111-1111-4111-8111-111111111111",
@@ -89,6 +90,11 @@ export const handlers = [
       ? HttpResponse.json({ configured: true, viewers: 0 })
       : unauthenticated(),
   ),
+  http.get("/api/server/health", ({ request }) => {
+    if (!isValidAccessToken(bearer(request))) return unauthenticated();
+    const history = healthFixture(4, SERVER_NOW_MS);
+    return HttpResponse.json({ latest: history.at(-1) ?? null, history });
+  }),
 ];
 
 export const server = setupServer(...handlers);
