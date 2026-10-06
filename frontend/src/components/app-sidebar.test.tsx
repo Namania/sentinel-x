@@ -30,7 +30,8 @@ describe("AppSidebar", () => {
     server.use(http.get("/api/alerts/summary", () => HttpResponse.json({ open: 2 })));
     renderAuthenticated("/");
     const nav = await sidebar();
-    expect(await nav.findByLabelText("2 alertes ouvertes")).toBeInTheDocument();
+    expect(await nav.findByText("2 alertes ouvertes")).toBeInTheDocument();
+    expect(nav.getByText("2", { selector: "[aria-hidden]" })).toBeInTheDocument();
   });
 
   it("starts collapsed so the wall screen keeps the room for the content", async () => {

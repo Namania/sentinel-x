@@ -54,12 +54,17 @@ function NavItem({ to, label, icon: Icon, end, badge }: NavItemProps) {
           <Icon />
           <span>{label}</span>
           {badge ? (
-            <span
-              aria-label={`${badge} ${badge > 1 ? "alertes ouvertes" : "alerte ouverte"}`}
-              className="bg-destructive ml-auto min-w-4 rounded-full px-1 text-center text-[10px] leading-4 font-semibold text-white tabular-nums group-data-[collapsible=icon]:absolute group-data-[collapsible=icon]:-top-0.5 group-data-[collapsible=icon]:-right-0.5 group-data-[collapsible=icon]:ml-0"
-            >
-              {badge}
-            </span>
+            <>
+              <span
+                aria-hidden="true"
+                className="bg-destructive ml-auto min-w-4 rounded-full px-1 text-center text-[10px] leading-4 font-semibold text-white tabular-nums group-data-[collapsible=icon]:absolute group-data-[collapsible=icon]:-top-0.5 group-data-[collapsible=icon]:-right-0.5 group-data-[collapsible=icon]:ml-0"
+              >
+                {badge}
+              </span>
+              <span className="sr-only">
+                {badge} {badge > 1 ? "alertes ouvertes" : "alerte ouverte"}
+              </span>
+            </>
           ) : null}
         </NavLink>
       </SidebarMenuButton>

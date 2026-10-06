@@ -75,4 +75,32 @@ describe("AlertsPageContent", () => {
     await user.click(screen.getByRole("radio", { name: "Ouvertes" }));
     expect(screen.getByText("Aucune alerte")).toBeInTheDocument();
   });
+
+  it("says when the history is truncated to the newest alerts", async () => {
+    localStorage.setItem(REFRESH_TOKEN_KEY, VALID_REFRESH);
+    server.use(
+      http.get("/api/alerts", ({ request }) => {
+        const limit = Number(new URL(request.url).searchParams.get("limit"));
+        expect(limit).toBe(500);
+        return HttpResponse.json(
+          Array.from({ length: limit }, (_, i) =>
+            makeAlert({
+              id: `a${i}`,
+              opened_at: new Date(ALERTS_NOW_MS - (i + 2) * 60_000).toISOString(),
+              resolved_at: new Date(ALERTS_NOW_MS - (i + 1) * 60_000).toISOString(),
+              resolved_value: 29,
+            }),
+          ),
+        );
+      }),
+    );
+    renderRoutes(
+      [{ path: "/alertes", element: <AlertsPageContent nowMs={ALERTS_NOW_MS} /> }],
+      "/alertes",
+    );
+    await screen.findByRole("table");
+    expect(
+      screen.getByText("Seules les 500 alertes les plus récentes sont affichées."),
+    ).toBeInTheDocument();
+  });
 });

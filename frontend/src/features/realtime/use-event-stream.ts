@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/features/auth/use-auth";
+import { RealtimeContext } from "./realtime-context";
 
 export const RECONNECT_DELAYS_MS = [1000, 2000, 5000, 10000, 30000] as const;
 
@@ -9,10 +10,31 @@ export function streamUrl(token: string): string {
 }
 
 /**
- * The app WebSocket: every message is `{ type, data }`. Reconnects with growing waits, reopens
- * when the access token changes, closes on unmount or when disabled. Callers filter by `type`.
+ * Events of the app WebSocket, `{ type, data }`, filtered by the caller. Inside a
+ * `RealtimeProvider` every call shares its single socket; outside (tests), each call opens one.
  */
 export function useEventStream(enabled: boolean, onEvent: (type: string, data: unknown) => void) {
+  const shared = useContext(RealtimeContext);
+  const onEventRef = useRef(onEvent);
+  useEffect(() => {
+    onEventRef.current = onEvent;
+  }, [onEvent]);
+  useEffect(() => {
+    if (!shared || !enabled) return;
+    return shared.subscribe((type, data) => onEventRef.current(type, data));
+  }, [shared, enabled]);
+  const standalone = useStandaloneEventStream(enabled && shared === null, onEvent);
+  return { connected: shared ? enabled && shared.connected : standalone.connected };
+}
+
+/**
+ * One WebSocket of its own: reconnects with growing waits, reopens when the access token changes,
+ * closes on unmount or when disabled. The provider is built on it.
+ */
+export function useStandaloneEventStream(
+  enabled: boolean,
+  onEvent: (type: string, data: unknown) => void,
+) {
   const { accessToken } = useAuth();
   const [connected, setConnected] = useState(false);
   const onEventRef = useRef(onEvent);

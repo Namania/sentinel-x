@@ -2,6 +2,7 @@ import { Outlet, useLocation } from "react-router";
 import { AppSidebar } from "@/components/app-sidebar";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { RealtimeProvider } from "@/features/realtime/realtime-provider";
 import { ThemeToggle } from "@/features/theme/theme-toggle";
 
 const TITLES: Record<string, string> = {
@@ -16,22 +17,25 @@ export function AppShell() {
   const { pathname } = useLocation();
   return (
     <TooltipProvider>
-      {/* Wall screen first: collapsed on load, the user can still open it for the session. */}
-      <SidebarProvider defaultOpen={false}>
-        <AppSidebar />
-        <SidebarInset className="bg-background text-foreground">
-          <header className="flex h-12 shrink-0 items-center gap-2 border-b px-3">
-            <SidebarTrigger aria-label="Afficher ou masquer le menu" />
-            <span className="text-sm font-medium">{TITLES[pathname] ?? "sentinel-x"}</span>
-            <div className="ml-auto">
-              <ThemeToggle />
+      {/* One WebSocket for the sidebar badge and every page; hooks subscribe to it. */}
+      <RealtimeProvider>
+        {/* Wall screen first: collapsed on load, the user can still open it for the session. */}
+        <SidebarProvider defaultOpen={false}>
+          <AppSidebar />
+          <SidebarInset className="bg-background text-foreground">
+            <header className="flex h-12 shrink-0 items-center gap-2 border-b px-3">
+              <SidebarTrigger aria-label="Afficher ou masquer le menu" />
+              <span className="text-sm font-medium">{TITLES[pathname] ?? "sentinel-x"}</span>
+              <div className="ml-auto">
+                <ThemeToggle />
+              </div>
+            </header>
+            <div className="flex flex-1 flex-col">
+              <Outlet />
             </div>
-          </header>
-          <div className="flex flex-1 flex-col">
-            <Outlet />
-          </div>
-        </SidebarInset>
-      </SidebarProvider>
+          </SidebarInset>
+        </SidebarProvider>
+      </RealtimeProvider>
     </TooltipProvider>
   );
 }

@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { routes } from "@/app/router";
 import { REFRESH_TOKEN_KEY } from "@/features/auth/token-storage";
 import { renderRoutes } from "@/test/render";
-import { VALID_REFRESH } from "@/test/server";
+import { sensorsLink, server, VALID_REFRESH } from "@/test/server";
 
 function renderDashboard() {
   localStorage.setItem(REFRESH_TOKEN_KEY, VALID_REFRESH);
@@ -43,5 +43,15 @@ describe("Dashboard (wall screen)", () => {
     expect(card).toHaveAttribute("href", "/alertes");
     await user.click(card);
     expect(router.state.location.pathname).toBe("/alertes");
+  });
+
+  it("shares one WebSocket between the sensors, the server card, the alerts and the nav", async () => {
+    let connections = 0;
+    server.use(sensorsLink.addEventListener("connection", () => void connections++));
+    renderDashboard();
+    await screen.findByRole("link", { name: "Alertes, voir l'historique" });
+    await screen.findByRole("group", { name: "CPU" });
+    await new Promise((r) => setTimeout(r, 300));
+    expect(connections).toBe(1);
   });
 });

@@ -18,7 +18,8 @@ export type Alert = {
 
 export const ALERTS_PATH = "/alerts";
 export const ALERTS_SUMMARY_PATH = "/alerts/summary";
-export const ALERTS_LIMIT = 200;
+/** The API's maximum; the /alertes page says so when the history is longer. */
+export const ALERTS_LIMIT = 500;
 /** Resolved alerts shown on the dashboard card, after the open ones. */
 export const RESOLVED_SHOWN = 5;
 
@@ -40,7 +41,12 @@ export function isOpen(alert: Alert): boolean {
 
 /** « 31,2 °C > 30 °C » — the peak against the bound, or « alerte ESP » when only the flag spoke. */
 export function valueAgainstBound(alert: Alert): string {
-  if (alert.metric === "gas" && alert.threshold === 0) return "alerte ESP";
+  if (alert.metric === "gas" && alert.threshold === 0) {
+    // Raised by the device's own flag: no bound to compare with, show the level if we have one.
+    return alert.peak_value > 0
+      ? `alerte ESP (${formatNumber(alert.peak_value, 0)} mV)`
+      : "alerte ESP";
+  }
   const unit = UNITS[alert.metric];
   const digits = DIGITS[alert.metric];
   const sign = alert.direction === "high" ? ">" : "<";
@@ -52,7 +58,8 @@ export function valueAgainstBound(alert: Alert): string {
 /** « Température 31,2 °C > 30 °C » — or « Gaz : alerte ESP » when only the device flag spoke. */
 export function describeAlert(alert: Alert): string {
   const label = METRIC_LABELS[alert.metric];
-  if (alert.metric === "gas" && alert.threshold === 0) return `${label} : alerte ESP`;
+  if (alert.metric === "gas" && alert.threshold === 0)
+    return `${label} : ${valueAgainstBound(alert)}`;
   return `${label} ${valueAgainstBound(alert)}`;
 }
 

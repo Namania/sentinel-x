@@ -22,7 +22,13 @@ import { DEVICES_PATH, type Device } from "@/features/metrics/metrics-api";
 import { formatTime } from "@/lib/format-number";
 import { useNow } from "@/lib/use-now";
 import { cn } from "@/lib/utils";
-import { durationLabel, isOpen, METRIC_LABELS, valueAgainstBound } from "./alerts-api";
+import {
+  ALERTS_LIMIT,
+  durationLabel,
+  isOpen,
+  METRIC_LABELS,
+  valueAgainstBound,
+} from "./alerts-api";
 import { useAlerts } from "./use-alerts";
 
 type StateFilter = "all" | "open" | "resolved";
@@ -96,6 +102,11 @@ export function AlertsPageContent({ nowMs }: { nowMs?: number }) {
       {status === "error" && <p className="text-destructive">Alertes indisponibles.</p>}
       {status === "ready" && rows.length === 0 && (
         <p className="text-muted-foreground">Aucune alerte</p>
+      )}
+      {status === "ready" && alerts.length >= ALERTS_LIMIT && (
+        <p className="text-muted-foreground text-sm">
+          Seules les {ALERTS_LIMIT} alertes les plus récentes sont affichées.
+        </p>
       )}
       {status === "ready" && rows.length > 0 && (
         <Table>

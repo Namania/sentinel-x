@@ -15,6 +15,9 @@ describe("alerts api helpers", () => {
       `Gaz ${formatNumber(1800, 0)} mV > ${formatNumber(1500, 0)} mV`,
     );
     expect(describeAlert(makeAlert({ metric: "gas", threshold: 0, peak_value: 1800 }))).toBe(
+      `Gaz : alerte ESP (${formatNumber(1800, 0)} mV)`,
+    );
+    expect(describeAlert(makeAlert({ metric: "gas", threshold: 0, peak_value: 0 }))).toBe(
       "Gaz : alerte ESP",
     );
   });
