@@ -3,12 +3,13 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from types import TracebackType
 
-from app.domain.repositories import SensorReadingRepository, UserRepository
+from app.domain.repositories import AlertRepository, SensorReadingRepository, UserRepository
 
 
 class UnitOfWork(ABC):
     users: UserRepository
     readings: SensorReadingRepository
+    alerts: AlertRepository
 
     async def __aenter__(self) -> UnitOfWork:
         return self

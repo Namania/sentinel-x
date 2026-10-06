@@ -1,16 +1,23 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import cast
 from uuid import UUID
 
 from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
-from app.domain.repositories import SensorReadingRepository, UserRepository
+from app.domain.alert import Alert, Direction, Metric
+from app.domain.repositories import (
+    AlertRepository,
+    AlertStatus,
+    SensorReadingRepository,
+    UserRepository,
+)
 from app.domain.sensor_reading import DeviceSummary, ReadingBucket, SensorReading
 from app.domain.user import User
-from app.infrastructure.db.models import SensorReadingModel, UserModel
+from app.infrastructure.db.models import AlertModel, SensorReadingModel, UserModel
 
 
 def _to_entity(row: UserModel) -> User:
@@ -155,3 +162,75 @@ class SqlAlchemySensorReadingRepository(SensorReadingRepository):
             )
             for row in rows
         ]
+
+
+def _alert_to_entity(row: AlertModel) -> Alert:
+    return Alert(
+        id=row.id,
+        device_id=row.device_id,
+        metric=cast(Metric, row.metric),
+        direction=cast(Direction, row.direction),
+        threshold=row.threshold,
+        opened_at=row.opened_at,
+        opened_value=row.opened_value,
+        peak_value=row.peak_value,
+        resolved_at=row.resolved_at,
+        resolved_value=row.resolved_value,
+    )
+
+
+class SqlAlchemyAlertRepository(AlertRepository):
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def add(self, alert: Alert) -> None:
+        self._session.add(
+            AlertModel(
+                id=alert.id,
+                device_id=alert.device_id,
+                metric=alert.metric,
+                direction=alert.direction,
+                threshold=alert.threshold,
+                opened_at=alert.opened_at,
+                opened_value=alert.opened_value,
+                peak_value=alert.peak_value,
+                resolved_at=alert.resolved_at,
+                resolved_value=alert.resolved_value,
+            )
+        )
+        # Flush now so the partial unique index speaks inside the transaction, not at commit.
+        await self._session.flush()
+
+    async def save(self, alert: Alert) -> None:
+        row = await self._session.get(AlertModel, alert.id)
+        if row is None:
+            raise LookupError(f"alert {alert.id} not found")
+        row.peak_value = alert.peak_value
+        row.resolved_at = alert.resolved_at
+        row.resolved_value = alert.resolved_value
+        await self._session.flush()
+
+    async def open_for(self, device_id: str, metric: Metric) -> Alert | None:
+        m = AlertModel
+        stmt = select(m).where(
+            m.device_id == device_id, m.metric == metric, m.resolved_at.is_(None)
+        )
+        row = (await self._session.scalars(stmt)).first()
+        return _alert_to_entity(row) if row else None
+
+    async def list(self, status: AlertStatus, device_id: str | None, limit: int) -> list[Alert]:
+        m = AlertModel
+        stmt = select(m)
+        if device_id is not None:
+            stmt = stmt.where(m.device_id == device_id)
+        if status == "open":
+            stmt = stmt.where(m.resolved_at.is_(None))
+        elif status == "resolved":
+            stmt = stmt.where(m.resolved_at.is_not(None))
+        stmt = stmt.order_by(m.resolved_at.is_(None).desc(), m.opened_at.desc()).limit(limit)
+        return [_alert_to_entity(r) for r in (await self._session.scalars(stmt)).all()]
+
+    async def count_open(self) -> int:
+        m = AlertModel
+        stmt = select(func.count()).select_from(m).where(m.resolved_at.is_(None))
+        return int((await self._session.execute(stmt)).scalar_one())

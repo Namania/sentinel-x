@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.application.ports.unit_of_work import UnitOfWork
 from app.infrastructure.db.repositories import (
+    SqlAlchemyAlertRepository,
     SqlAlchemySensorReadingRepository,
     SqlAlchemyUserRepository,
 )
@@ -20,6 +21,7 @@ class SqlAlchemyUnitOfWork(UnitOfWork):
         self._session = self._session_factory()
         self.users = SqlAlchemyUserRepository(self._session)
         self.readings = SqlAlchemySensorReadingRepository(self._session)
+        self.alerts = SqlAlchemyAlertRepository(self._session)
         return self
 
     async def __aexit__(

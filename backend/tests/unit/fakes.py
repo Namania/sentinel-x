@@ -9,7 +9,8 @@ from uuid import UUID
 from app.application.ports.event_broadcaster import Event
 from app.application.ports.token_service import InvalidToken, TokenPayload
 from app.application.ports.unit_of_work import UnitOfWork
-from app.domain.repositories import SensorReadingRepository, UserRepository
+from app.domain.alert import Alert, Metric
+from app.domain.repositories import AlertRepository, SensorReadingRepository, UserRepository
 from app.domain.sensor_reading import DeviceSummary, ReadingBucket, SensorReading
 from app.domain.user import User
 
@@ -94,10 +95,45 @@ class InMemorySensorReadingRepository(SensorReadingRepository):
         return buckets
 
 
+class InMemoryAlertRepository(AlertRepository):
+    def __init__(self) -> None:
+        self.alerts: list[Alert] = []
+
+    async def add(self, alert: Alert) -> None:
+        self.alerts.append(alert)
+
+    async def save(self, alert: Alert) -> None:
+        self.alerts = [alert if a.id == alert.id else a for a in self.alerts]
+
+    async def open_for(self, device_id: str, metric: Metric) -> Alert | None:
+        return next(
+            (
+                a
+                for a in self.alerts
+                if a.device_id == device_id and a.metric == metric and a.is_open
+            ),
+            None,
+        )
+
+    async def list(self, status, device_id, limit):
+        rows = [
+            a
+            for a in self.alerts
+            if (device_id is None or a.device_id == device_id)
+            and (status == "all" or (status == "open") == a.is_open)
+        ]
+        rows.sort(key=lambda a: (not a.is_open, -a.opened_at.timestamp()))
+        return rows[:limit]
+
+    async def count_open(self) -> int:
+        return sum(1 for a in self.alerts if a.is_open)
+
+
 class InMemoryUnitOfWork(UnitOfWork):
     def __init__(self) -> None:
         self.users = InMemoryUserRepository()
         self.readings = InMemorySensorReadingRepository()
+        self.alerts = InMemoryAlertRepository()
         self.committed = False
         self.rolled_back = False
 

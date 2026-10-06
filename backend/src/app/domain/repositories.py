@@ -2,8 +2,10 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from datetime import datetime
+from typing import Literal
 from uuid import UUID
 
+from app.domain.alert import Alert, Metric
 from app.domain.sensor_reading import DeviceSummary, ReadingBucket, SensorReading
 from app.domain.user import User
 
@@ -41,3 +43,25 @@ class SensorReadingRepository(ABC):
         self, device_id: str, since: datetime, until: datetime, bucket_seconds: int
     ) -> list[ReadingBucket]:
         """Per-bucket averages, extremes and alert counts, oldest bucket first."""
+
+
+AlertStatus = Literal["open", "resolved", "all"]
+
+
+class AlertRepository(ABC):
+    @abstractmethod
+    async def add(self, alert: Alert) -> None: ...
+
+    @abstractmethod
+    async def save(self, alert: Alert) -> None:
+        """Persist the new state of an existing alert (peak, resolution)."""
+
+    @abstractmethod
+    async def open_for(self, device_id: str, metric: Metric) -> Alert | None: ...
+
+    @abstractmethod
+    async def list(self, status: AlertStatus, device_id: str | None, limit: int) -> list[Alert]:
+        """Open alerts first, then by opened_at descending; at most `limit`."""
+
+    @abstractmethod
+    async def count_open(self) -> int: ...
