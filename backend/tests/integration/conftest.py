@@ -23,6 +23,7 @@ TEST_SETTINGS = Settings(
     jwt_secret=TEST_JWT_SECRET,
     camera_stream_url=None,
     device_api_key="test-device-key-0123456789",
+    server_health_enabled=False,
 )
 DEVICE_HEADERS = {"X-Device-Key": "test-device-key-0123456789"}
 TEST_DATABASE_URL = TEST_SETTINGS.database_url

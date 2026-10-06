@@ -9,6 +9,7 @@ from starlette.requests import HTTPConnection
 from app.application.ports.password_hasher import PasswordHasher
 from app.application.ports.token_service import InvalidToken, TokenService
 from app.application.ports.unit_of_work import UnitOfWork
+from app.application.server.health import HealthHistory
 from app.infrastructure.camera.relay import CameraRelay
 from app.infrastructure.config import Settings
 from app.infrastructure.db.unit_of_work import SqlAlchemyUnitOfWork
@@ -45,6 +46,10 @@ def get_hub(conn: HTTPConnection) -> ConnectionHub:
 
 def get_camera_relay(conn: HTTPConnection) -> CameraRelay | None:
     return conn.app.state.camera_relay
+
+
+def get_server_health_history(conn: HTTPConnection) -> HealthHistory:
+    return conn.app.state.server_health
 
 
 def decode_access_token(token: str | None, tokens: TokenService) -> UUID | None:
@@ -125,3 +130,4 @@ CurrentUserIdDep = Annotated[UUID, Depends(get_current_user_id)]
 StreamUserIdDep = Annotated[UUID, Depends(get_current_user_id_from_header_or_query)]
 CameraRelayDep = Annotated[CameraRelay | None, Depends(get_camera_relay)]
 DeviceKeyDep = Annotated[None, Depends(require_device_key)]
+ServerHealthHistoryDep = Annotated[HealthHistory, Depends(get_server_health_history)]

@@ -57,3 +57,24 @@ def test_mqtt_is_optional_with_sane_defaults():
     assert (settings.mqtt_port, settings.mqtt_topic) == (1883, "sentinel/+")
     configured = Settings(_env_file=None, jwt_secret="x" * 32, mqtt_host="mosquitto")
     assert configured.mqtt_host == "mosquitto"
+
+
+def test_server_health_defaults_point_at_the_container_proc():
+    from pathlib import Path
+
+    settings = Settings(_env_file=None, jwt_secret="x" * 32)
+    assert settings.host_proc_path == Path("/proc")
+    assert settings.host_thermal_path == Path("/sys/class/thermal")
+    assert settings.host_disk_path == Path("/")
+    assert settings.server_health_interval_s == 5.0
+    assert settings.server_health_enabled is True
+
+
+def test_server_health_paths_come_from_the_environment(monkeypatch):
+    from pathlib import Path
+
+    monkeypatch.setenv("HOST_DISK_PATH", "/host/root")
+    monkeypatch.setenv("HOST_THERMAL_PATH", "/host/thermal")
+    settings = Settings(_env_file=None, jwt_secret="x" * 32)
+    assert settings.host_disk_path == Path("/host/root")
+    assert settings.host_thermal_path == Path("/host/thermal")

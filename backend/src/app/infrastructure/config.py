@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -23,6 +25,14 @@ class Settings(BaseSettings):
     mqtt_host: str | None = None
     mqtt_port: int = 1883
     mqtt_topic: str = "sentinel/+"
+
+    # Host health shown on the dashboard. /proc inside Docker already describes the host; the
+    # thermal zone and the disk are bind-mounted by compose.yml (see HOST_* there).
+    host_proc_path: Path = Path("/proc")
+    host_thermal_path: Path = Path("/sys/class/thermal")
+    host_disk_path: Path = Path("/")
+    server_health_interval_s: float = 5.0
+    server_health_enabled: bool = True
 
     @field_validator("device_api_key")
     @classmethod

@@ -24,6 +24,12 @@ services:
     environment:
       API_ROOT_PATH: /api
       MQTT_HOST: mosquitto
+      HOST_THERMAL_PATH: /host/thermal
+      HOST_DISK_PATH: /host/root
+    volumes:
+      # Host health for the dashboard: SoC temperature and root disk usage, read-only.
+      - /sys/class/thermal:/host/thermal:ro
+      - /:/host/root:ro
     depends_on:
       db:
         condition: service_healthy
