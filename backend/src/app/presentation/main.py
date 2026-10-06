@@ -15,7 +15,7 @@ from app.infrastructure.mqtt.subscriber import MqttSubscriber
 from app.infrastructure.realtime.hub import ConnectionHub
 from app.infrastructure.system.monitor import ServerHealthMonitor
 from app.infrastructure.system.procfs import ProcfsSampler
-from app.presentation.http import auth, camera, health, sensors, server, users
+from app.presentation.http import alerts, auth, camera, health, sensors, server, users
 from app.presentation.http.errors import register_error_handlers
 from app.presentation.ws import router as ws_router
 
@@ -64,6 +64,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(users.router)
     app.include_router(camera.router)
     app.include_router(sensors.router)
+    app.include_router(alerts.router)
     app.include_router(server.router)
     app.include_router(ws_router.router)
     return app
