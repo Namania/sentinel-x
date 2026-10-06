@@ -115,4 +115,26 @@ describe("Dashboard metrics section", () => {
       await section.findByText("Aucune mesure pour cet appareil sur la plage choisie."),
     ).toBeInTheDocument();
   });
+
+  it("explains when no device has reported yet instead of loading forever", async () => {
+    server.use(http.get("/api/sensors/devices", () => HttpResponse.json([])));
+    renderDashboard();
+    const section = await metrics();
+    expect(
+      await section.findByText("Aucun appareil n'a encore envoyé de mesure."),
+    ).toBeInTheDocument();
+    expect(
+      section.queryByRole("status", { name: "Chargement des mesures" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("marks gas alert buckets with a symbol, not colour alone", async () => {
+    const user = userEvent.setup();
+    renderDashboard();
+    const section = await metrics();
+    await section.findByRole("group", { name: "Température" });
+    await user.click(section.getByRole("radio", { name: "6 h" }));
+    // bucketsFixture flags only the last of four buckets.
+    expect(await section.findAllByRole("img", { name: "Alerte gaz" })).toHaveLength(1);
+  });
 });

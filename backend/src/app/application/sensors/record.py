@@ -1,10 +1,14 @@
 from collections.abc import Callable
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from app.application.ports.event_broadcaster import EventBroadcaster
 from app.application.ports.unit_of_work import UnitOfWork
 from app.application.sensors.dtos import ReadingInput, ReadingOutput
-from app.domain.sensor_reading import SensorReading
+from app.domain.sensor_reading import SensorReading, to_utc
+
+# Devices have no reliable clock: timestamps outside this window are replaced by server time.
+MAX_FUTURE_DRIFT = timedelta(minutes=5)
+MAX_AGE = timedelta(days=30)
 
 
 def _utc_now() -> datetime:
@@ -24,10 +28,19 @@ class RecordReading:
         self._broadcaster = broadcaster
         self._clock = clock or _utc_now
 
+    def _plausible_time(self, recorded_at: datetime | None) -> datetime:
+        now = self._clock()
+        if recorded_at is None:
+            return now
+        moment = to_utc(recorded_at)
+        if moment > now + MAX_FUTURE_DRIFT or moment < now - MAX_AGE:
+            return now
+        return moment
+
     async def execute(self, data: ReadingInput) -> ReadingOutput:
         reading = SensorReading.create(
             device_id=data.device_id,
-            recorded_at=data.recorded_at or self._clock(),
+            recorded_at=self._plausible_time(data.recorded_at),
             temperature_c=data.temperature_c,
             humidity_pct=data.humidity_pct,
             gas_ppm=data.gas_ppm,

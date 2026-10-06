@@ -6,6 +6,7 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
+  LabelList,
   Line,
   LineChart,
   PolarAngleAxis,
@@ -48,6 +49,28 @@ function ChartCard({ title, children }: { title: string; children: ReactNode }) 
 }
 
 const tooltipLabel = (value: unknown) => formatTime(Number(value));
+
+type MarkerProps = {
+  x?: number | string;
+  y?: number | string;
+  width?: number | string;
+  value?: unknown;
+};
+
+/** A small triangle above a bar whose bucket contains a gas alert: identity never by colour alone. */
+function AlertMarker({ x, y, width, value }: MarkerProps) {
+  if (!value || x === undefined || y === undefined || width === undefined) return null;
+  const cx = Number(x) + Number(width) / 2;
+  const top = Number(y) - 10;
+  return (
+    <g role="img" aria-label="Alerte gaz">
+      <polygon
+        points={`${cx},${top - 6} ${cx - 5},${top + 2} ${cx + 5},${top + 2}`}
+        fill="var(--destructive)"
+      />
+    </g>
+  );
+}
 
 export function TemperatureChart({ points }: { points: MetricPoint[] }) {
   return (
@@ -135,15 +158,27 @@ export function GasChart({ points }: { points: MetricPoint[] }) {
           <XAxis dataKey="time" tickFormatter={formatTime} {...axisProps} />
           <YAxis width={48} tickFormatter={(v) => formatNumber(Number(v), 0)} {...axisProps} />
           <ChartTooltip content={<ChartTooltipContent labelFormatter={tooltipLabel} />} />
-          <Bar dataKey="gas" fill="var(--color-gas)" radius={[4, 4, 0, 0]}>
+          {/* No bar animation: labels only appear once it ends, and live data redraws often. */}
+          <Bar
+            dataKey="gas"
+            fill="var(--color-gas)"
+            radius={[4, 4, 0, 0]}
+            isAnimationActive={false}
+          >
             {points.map((p) => (
               <Cell key={p.time} fill={p.gasAlert ? "var(--destructive)" : "var(--color-gas)"} />
             ))}
+            <LabelList
+              valueAccessor={(entry: { payload?: MetricPoint }) =>
+                entry.payload?.gasAlert ? 1 : null
+              }
+              content={<AlertMarker />}
+            />
           </Bar>
         </BarChart>
       </ChartContainer>
       <p className="text-muted-foreground mt-2 text-xs">
-        Les intervalles contenant une alerte sont en rouge.
+        Un triangle rouge au-dessus d'une barre signale une alerte gaz dans l'intervalle.
       </p>
     </ChartCard>
   );

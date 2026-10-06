@@ -64,6 +64,8 @@ export const sensorHandlers = [
 
 /** Mirrors the real backend: login/refresh issue pairs, protected routes need a live access token. */
 export const handlers = [
+  // Accept WebSocket connections silently; tests that need events add their own listener.
+  sensorsLink.addEventListener("connection", () => {}),
   ...sensorHandlers,
   http.get("/api/health", () => HttpResponse.json({ status: "ok" })),
   http.post("/api/auth/login", async ({ request }) => {

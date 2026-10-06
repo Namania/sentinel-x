@@ -109,7 +109,10 @@ def require_device_key(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Device ingestion not configured",
         )
-    if x_device_key is None or not secrets.compare_digest(x_device_key, settings.device_api_key):
+    # Compare bytes: compare_digest raises on non-ASCII str, and the header is attacker-controlled.
+    expected = settings.device_api_key.encode()
+    given = x_device_key.encode("utf-8", "surrogateescape") if x_device_key is not None else b""
+    if not secrets.compare_digest(given, expected):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid device key")
 
 

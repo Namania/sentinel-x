@@ -15,11 +15,32 @@ afterEach(() => {
 afterAll(() => server.close());
 
 installMatchMedia(false);
-// Radix UI primitives rely on browser APIs that jsdom does not implement.
+// Radix UI and Recharts rely on ResizeObserver, which jsdom does not implement. The stub reports
+// a fixed size at once so charts render their SVG and tests can query marks and labels.
 vi.stubGlobal(
   "ResizeObserver",
   class {
-    observe() {}
+    private readonly callback: ResizeObserverCallback;
+    constructor(callback: ResizeObserverCallback) {
+      this.callback = callback;
+    }
+    observe(target: Element) {
+      const contentRect = {
+        width: 600,
+        height: 224,
+        top: 0,
+        left: 0,
+        x: 0,
+        y: 0,
+        bottom: 224,
+        right: 600,
+        toJSON: () => ({}),
+      };
+      this.callback(
+        [{ target, contentRect } as unknown as ResizeObserverEntry],
+        this as unknown as ResizeObserver,
+      );
+    }
     unobserve() {}
     disconnect() {}
   },

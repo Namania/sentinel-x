@@ -20,7 +20,8 @@ def _check_range(name: str, value: float | None, bounds: tuple[float, float]) ->
         raise InvalidReading(f"{name} must be between {low:g} and {high:g}")
 
 
-def _to_utc(moment: datetime) -> datetime:
+def to_utc(moment: datetime) -> datetime:
+    """Aware UTC datetime; a naive value is taken as UTC."""
     if moment.tzinfo is None:
         return moment.replace(tzinfo=UTC)
     return moment.astimezone(UTC)
@@ -58,7 +59,7 @@ class SensorReading:
         return cls(
             id=uuid4(),
             device_id=device_id,
-            recorded_at=_to_utc(recorded_at),
+            recorded_at=to_utc(recorded_at),
             temperature_c=temperature_c,
             humidity_pct=humidity_pct,
             gas_ppm=gas_ppm,

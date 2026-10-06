@@ -19,6 +19,7 @@ import { useSensorStream } from "./use-sensor-stream";
 export function MetricsSection() {
   const { authFetch } = useAuth();
   const [devices, setDevices] = useState<Device[]>([]);
+  const [devicesStatus, setDevicesStatus] = useState<"loading" | "ready" | "error">("loading");
   const [deviceId, setDeviceId] = useState<string | null>(null);
   const [range, setRange] = useState<Range>("15m");
   const [live, setLive] = useState(true);
@@ -31,10 +32,13 @@ export function MetricsSection() {
       .then((list) => {
         if (cancelled) return;
         setDevices(list);
+        setDevicesStatus("ready");
         setDeviceId((current) => current ?? list[0]?.device_id ?? null);
       })
       .catch(() => {
-        if (!cancelled) setDevices([]);
+        if (cancelled) return;
+        setDevices([]);
+        setDevicesStatus("error");
       });
     return () => {
       cancelled = true;
@@ -84,7 +88,15 @@ export function MetricsSection() {
         onViewChange={setView}
       />
       <MetricTiles latest={latest} previous={previous} />
-      {readings.status === "loading" && <Skeleton className="h-56 w-full" />}
+      {devicesStatus === "error" && (
+        <p className="text-destructive">Impossible de charger la liste des appareils.</p>
+      )}
+      {devicesStatus === "ready" && deviceId === null && (
+        <p className="text-muted-foreground">Aucun appareil n'a encore envoyé de mesure.</p>
+      )}
+      {deviceId !== null && readings.status === "loading" && (
+        <Skeleton role="status" aria-label="Chargement des mesures" className="h-56 w-full" />
+      )}
       {readings.status === "error" && (
         <p className="text-destructive">Impossible de charger les mesures.</p>
       )}

@@ -22,7 +22,9 @@ class Settings(BaseSettings):
     @field_validator("device_api_key")
     @classmethod
     def _device_key_must_be_long(cls, value: str | None) -> str | None:
-        if value is not None and len(value) < 16:
+        if not value:  # "" (an empty line in .env) means "not configured"
+            return None
+        if len(value) < 16:
             raise ValueError("DEVICE_API_KEY must be at least 16 characters")
         return value
 

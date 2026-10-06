@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -59,3 +59,16 @@ async def test_invalid_values_are_rejected_before_storage():
         await RecordReading(uow, bus).execute(make_input(humidity_pct=101))
     assert uow.readings.readings == []
     assert bus.events == []
+
+
+async def test_implausible_device_timestamps_fall_back_to_server_time():
+    uow, bus = InMemoryUnitOfWork(), RecordingBroadcaster()
+    use_case = RecordReading(uow, bus, clock=lambda: NOW)
+    far_future = NOW + timedelta(minutes=10)
+    ancient = datetime(2000, 1, 1, tzinfo=UTC)  # an ESP whose clock was never set
+    assert (await use_case.execute(make_input(recorded_at=far_future))).recorded_at == NOW
+    assert (await use_case.execute(make_input(recorded_at=ancient))).recorded_at == NOW
+    slight_drift = NOW + timedelta(minutes=2)
+    assert (
+        await use_case.execute(make_input(recorded_at=slight_drift))
+    ).recorded_at == slight_drift

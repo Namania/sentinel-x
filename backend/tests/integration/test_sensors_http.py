@@ -153,3 +153,10 @@ def test_new_reading_is_pushed_on_the_websocket(client):
     assert event["type"] == "sensor.reading"
     assert event["data"]["id"] == response.json()["id"]
     assert event["data"]["gas_ppm"] == 412
+
+
+def test_post_with_a_non_ascii_key_is_refused_not_a_server_error(client):
+    # httpx only lets raw bytes carry non-ASCII header values, like a real client would.
+    headers = {b"X-Device-Key": "clé-ünicode-0123456789".encode()}
+    response = client.post("/sensors/readings", json=BODY, headers=headers)
+    assert response.status_code == 401

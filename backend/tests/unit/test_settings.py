@@ -44,3 +44,8 @@ def test_device_api_key_is_optional_but_must_be_long_when_set():
     assert configured.device_api_key == "k" * 16
     with pytest.raises(ValidationError):
         Settings(_env_file=None, jwt_secret="x" * 32, device_api_key="short")
+
+
+def test_empty_device_api_key_means_unset():
+    settings = Settings(_env_file=None, jwt_secret="x" * 32, device_api_key="")
+    assert settings.device_api_key is None

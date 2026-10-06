@@ -120,7 +120,9 @@ def _utc(moment: datetime | None, default: datetime) -> datetime:
     response_model=ReadingResponse,
     summary="Enregistre une mesure envoyée par un appareil",
     description="Authentification par l'en-tête `X-Device-Key` (réglage `DEVICE_API_KEY`). "
-    "La mesure est stockée puis diffusée sur le WebSocket (`sensor.reading`).",
+    "La mesure est stockée puis diffusée sur le WebSocket (`sensor.reading`). Un `recorded_at` "
+    "absent, plus de 5 min dans le futur ou plus vieux que 30 jours est remplacé par l'heure du "
+    "serveur.",
 )
 async def post_reading(
     body: ReadingRequest, _: DeviceKeyDep, uow: UowDep, hub: HubDep
