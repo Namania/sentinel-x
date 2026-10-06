@@ -21,5 +21,6 @@ services:
       API_PROXY_TARGET: http://api:8000
       # Set to "true" if file changes are not picked up through the bind mount.
       VITE_USE_POLLING: ${VITE_USE_POLLING:-false}
-    ports:
+    # !override replaces the production mapping (8080:80) instead of merging with it.
+    ports: !override
       - "8080:5173"
