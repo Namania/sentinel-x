@@ -120,9 +120,11 @@ Commande `uv run simulate-sensors [--base-url http://localhost:8000] [--device e
 pic de gaz occasionnel avec `mostGaz=true`) sur `POST /sensors/readings` avec la clé lue dans
 `.env`. Permet de voir les graphiques sans matériel ; la génération est testée unitairement.
 
-## Front : page « Mesures » (`/metrics`)
+## Front : les mesures dans le Dashboard (`/`)
 
-Entrée « Mesures » dans la sidebar (icône `Activity`), titre « Mesures · sentinel-x ».
+Pas de page ni d'entrée de menu supplémentaire : le Dashboard garde sa rangée de cartes d'état
+(Caméra, API, Compte) et gagne en dessous une section « Mesures » avec filtres, tuiles,
+graphiques et vue tableau.
 
 ### Données
 
@@ -169,7 +171,7 @@ Trois teintes fixes, une par métrique, déclarées dans `index.css` (`--metric-
 `src/features/metrics/` : `metrics-api.ts` (types, chemins, `bucketFor(range)`),
 `use-readings.ts`, `use-sensor-stream.ts`, `metric-tiles.tsx`, `temperature-chart.tsx`,
 `humidity-chart.tsx`, `gas-chart.tsx`, `gas-gauge.tsx`, `readings-table.tsx`,
-`metrics-filters.tsx` ; page `src/pages/metrics.tsx`. Composants shadcn ajoutés : `chart`
+`metrics-filters.tsx`, `metrics-section.tsx` (assemblage, rendu par `src/pages/dashboard.tsx`). Composants shadcn ajoutés : `chart`
 (Recharts), `select`, `switch`, `table`, `toggle-group`.
 
 ### Tests
@@ -179,11 +181,11 @@ Trois teintes fixes, une par métrique, déclarées dans `index.css` (`--metric-
   agrégé, `from` par défaut), WS (une mesure postée arrive sur un client WS connecté),
   `simulate-sensors` (générateur borné).
 - Front : hook WS (msw `ws`) : connexion avec token, parsing, reconnexion ; `useReadings`
-  (bucket selon plage) ; page : tuiles avec valeurs et badge d'alerte, bascule tableau avec les
+  (bucket selon plage) ; Dashboard : tuiles avec valeurs et badge d'alerte, bascule tableau avec les
   lignes, filtres (changement de plage recharge), mise à jour en direct d'une tuile à la
   réception d'un message WS. Les SVG Recharts ne se mesurent pas sous jsdom : les tests passent
   par les tuiles, le tableau et les titres.
 
 ## README
 
-Section « Capteurs » : format du POST, clé `DEVICE_API_KEY`, `simulate-sensors`, page Mesures.
+Section « Capteurs » : format du POST, clé `DEVICE_API_KEY`, `simulate-sensors`, section Mesures du Dashboard.
