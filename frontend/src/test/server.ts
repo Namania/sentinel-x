@@ -1,6 +1,7 @@
 import { http, HttpResponse, ws } from "msw";
 import { setupServer } from "msw/node";
 import { decodeJwtPayload } from "@/features/auth/jwt";
+import { alertsFixture } from "./alerts";
 import { accessTokenExpiringIn, makeJwt } from "./jwt";
 import { bucketsFixture, DEVICE, makeReading, NOW_MS, readingsFixture } from "./sensors";
 import { healthFixture, SERVER_NOW_MS } from "./server-health";
@@ -88,6 +89,22 @@ export const handlers = [
   http.get("/api/camera/status", ({ request }) =>
     isValidAccessToken(bearer(request))
       ? HttpResponse.json({ configured: true, viewers: 0 })
+      : unauthenticated(),
+  ),
+  http.get("/api/alerts", ({ request }) => {
+    if (!isValidAccessToken(bearer(request))) return unauthenticated();
+    const url = new URL(request.url);
+    const status = url.searchParams.get("status") ?? "all";
+    const device = url.searchParams.get("device_id");
+    const limit = Number(url.searchParams.get("limit") ?? 100);
+    const rows = alertsFixture()
+      .filter((a) => (device ? a.device_id === device : true))
+      .filter((a) => status === "all" || (status === "open") === (a.resolved_at === null));
+    return HttpResponse.json(rows.slice(0, limit));
+  }),
+  http.get("/api/alerts/summary", ({ request }) =>
+    isValidAccessToken(bearer(request))
+      ? HttpResponse.json({ open: alertsFixture().filter((a) => a.resolved_at === null).length })
       : unauthenticated(),
   ),
   http.get("/api/server/health", ({ request }) => {
