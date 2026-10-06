@@ -21,3 +21,8 @@ it("shows a variation that rounds to zero without a sign", () => {
 it("formats a time of day", () => {
   expect(formatTime(Date.UTC(2026, 9, 6, 9, 5, 0))).toBe("11:05"); // tests run in Europe/Paris
 });
+
+it("never throws on an invalid time", () => {
+  expect(formatTime(Number.NaN)).toBe("–");
+  expect(formatTime(Number("Température (°C)"))).toBe("–");
+});

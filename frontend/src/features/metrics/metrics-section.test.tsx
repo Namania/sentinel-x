@@ -14,10 +14,19 @@ function renderDashboard() {
 }
 
 async function metrics() {
-  return within(await screen.findByRole("region", { name: "Mesures" }));
+  return within(await screen.findByRole("region", { name: "Dashboard" }));
 }
 
-describe("Dashboard metrics section", () => {
+describe("Dashboard (metrics only)", () => {
+  it("has a single Dashboard heading and no status cards", async () => {
+    renderDashboard();
+    await metrics();
+    expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
+    expect(screen.queryByRole("region", { name: "Caméra" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "API" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Compte" })).not.toBeInTheDocument();
+  });
+
   it("shows the latest values in the tiles with their variation", async () => {
     renderDashboard();
     const section = await metrics();

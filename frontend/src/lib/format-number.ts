@@ -32,6 +32,7 @@ export function formatDelta(
 
 const TIME = new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit" });
 
+/** "11:05" — or an en dash when the value is not a valid time. */
 export function formatTime(ms: number): string {
-  return TIME.format(new Date(ms));
+  return Number.isFinite(ms) ? TIME.format(new Date(ms)) : "–";
 }

@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/chart";
 import { formatNumber, formatTime } from "@/lib/format-number";
 import type { MetricPoint } from "./metrics-api";
+import { tooltipTimeLabel } from "./tooltip-label";
 
 const temperatureConfig = {
   temperature: { label: "Température (°C)", color: "var(--metric-temperature)" },
@@ -47,8 +48,6 @@ function ChartCard({ title, children }: { title: string; children: ReactNode }) 
     </Card>
   );
 }
-
-const tooltipLabel = (value: unknown) => formatTime(Number(value));
 
 type MarkerProps = {
   x?: number | string;
@@ -95,7 +94,7 @@ export function TemperatureChart({ points }: { points: MetricPoint[] }) {
             tickFormatter={(v) => formatNumber(Number(v), 0)}
             {...axisProps}
           />
-          <ChartTooltip content={<ChartTooltipContent labelFormatter={tooltipLabel} />} />
+          <ChartTooltip content={<ChartTooltipContent labelFormatter={tooltipTimeLabel} />} />
           <Line
             dataKey="temperature"
             type="monotone"
@@ -130,7 +129,7 @@ export function HumidityChart({ points }: { points: MetricPoint[] }) {
             {...axisProps}
           />
           <YAxis width={40} domain={[0, 100]} {...axisProps} />
-          <ChartTooltip content={<ChartTooltipContent labelFormatter={tooltipLabel} />} />
+          <ChartTooltip content={<ChartTooltipContent labelFormatter={tooltipTimeLabel} />} />
           <Area
             dataKey="humidity"
             type="monotone"
@@ -159,7 +158,7 @@ export function GasChart({ points }: { points: MetricPoint[] }) {
           <CartesianGrid vertical={false} strokeOpacity={0.4} />
           <XAxis dataKey="time" tickFormatter={formatTime} {...axisProps} />
           <YAxis width={48} tickFormatter={(v) => formatNumber(Number(v), 0)} {...axisProps} />
-          <ChartTooltip content={<ChartTooltipContent labelFormatter={tooltipLabel} />} />
+          <ChartTooltip content={<ChartTooltipContent labelFormatter={tooltipTimeLabel} />} />
           {/* No animations: live data redraws every few seconds, and bar labels only appear once it ends. */}
           <Bar
             dataKey="gas"
