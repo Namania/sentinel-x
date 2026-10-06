@@ -111,11 +111,14 @@ montrent déjà l'hôte (pas de lxcfs). Il faut monter l'hôte pour la températ
 # compose.yml, service api
 volumes:
   - /sys/class/thermal:/host/thermal:ro
-  - /:/host/root:ro
+  - /etc/os-release:/host/rootfs-probe:ro
 environment:
   HOST_THERMAL_PATH: /host/thermal
-  HOST_DISK_PATH: /host/root
+  HOST_DISK_PATH: /host/rootfs-probe
 ```
+
+`statvfs()` renvoie les totaux de la partition qui porte le chemin, quel qu'il soit : monter un
+seul fichier anodin de la partition racine suffit, sans exposer `/` au conteneur.
 
 Sous Docker Desktop (Mac) ne partage ni `/` ni `/sys` avec les conteneurs : `compose.dev.yml` retire
 ces montages (`volumes: !override`) et remet `HOST_THERMAL_PATH` / `HOST_DISK_PATH` à leurs valeurs

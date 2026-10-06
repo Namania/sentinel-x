@@ -43,7 +43,13 @@ export function HealthGauge({ label, valueText, ratio, warn, series }: Props) {
         className="h-7 w-[120px] [&_svg]:overflow-visible"
         initialDimension={sparkDimension}
       >
-        <AreaChart data={data} margin={{ top: 2, right: 0, bottom: 0, left: 0 }}>
+        {/* No axes nor tooltip here, and the card is one link: Recharts' keyboard layer (a focusable
+            role="application" svg) would add four tab stops inside the anchor. */}
+        <AreaChart
+          data={data}
+          margin={{ top: 2, right: 0, bottom: 0, left: 0 }}
+          accessibilityLayer={false}
+        >
           <Area
             dataKey="v"
             type="monotone"

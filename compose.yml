@@ -25,11 +25,12 @@ services:
       API_ROOT_PATH: /api
       MQTT_HOST: mosquitto
       HOST_THERMAL_PATH: /host/thermal
-      HOST_DISK_PATH: /host/root
+      HOST_DISK_PATH: /host/rootfs-probe
     volumes:
-      # Host health for the dashboard: SoC temperature and root disk usage, read-only.
+      # Host health for the dashboard, read-only. statvfs() on any path of the root partition
+      # returns that partition's totals, so one harmless file is enough: no need to expose /.
       - /sys/class/thermal:/host/thermal:ro
-      - /:/host/root:ro
+      - /etc/os-release:/host/rootfs-probe:ro
     depends_on:
       db:
         condition: service_healthy

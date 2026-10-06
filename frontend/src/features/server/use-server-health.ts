@@ -18,10 +18,13 @@ export function useServerHealth(enabled = true) {
   // Events that arrive before the history response; merged once it lands.
   const pending = useRef<ServerHealth[]>([]);
   const loaded = useRef(false);
+  // Set when the history request failed; the first live sample then rebuilds the state.
+  const failed = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
     loaded.current = false;
+    failed.current = false;
     authFetch<ServerHealthResponse>(SERVER_HEALTH_PATH)
       .then((response) => {
         if (cancelled) return;
@@ -35,7 +38,9 @@ export function useServerHealth(enabled = true) {
         setStatus("ready");
       })
       .catch(() => {
-        if (!cancelled) setStatus("error");
+        if (cancelled) return;
+        failed.current = true;
+        setStatus("error");
       });
     return () => {
       cancelled = true;
@@ -45,8 +50,18 @@ export function useServerHealth(enabled = true) {
   const onEvent = useCallback((type: string, data: unknown) => {
     if (type !== "server.health" || !data) return;
     const sample = data as ServerHealth;
-    if (!loaded.current) {
+    if (!loaded.current && !failed.current) {
       pending.current = appendHealth(pending.current, sample);
+      return;
+    }
+    if (failed.current) {
+      // The history request failed (API restarting?): live samples are enough to recover with.
+      failed.current = false;
+      loaded.current = true;
+      const seeded = appendHealth(pending.current, sample);
+      pending.current = [];
+      setHistory(seeded);
+      setStatus("ready");
       return;
     }
     setHistory((current) => appendHealth(current, sample));

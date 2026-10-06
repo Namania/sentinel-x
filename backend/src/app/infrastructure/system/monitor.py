@@ -40,6 +40,10 @@ class ServerHealthMonitor:
                 sample = await asyncio.to_thread(self._sampler.sample)
             except SamplingError as exc:
                 logger.warning("server health sample failed: %s", exc)
+            except asyncio.CancelledError:
+                raise
+            except Exception:  # noqa: BLE001 - a wall screen must not lose its server card silently
+                logger.exception("server health tick failed")
             else:
                 self._history.append(sample)
                 await self._broadcaster.broadcast(to_event(sample))

@@ -98,4 +98,25 @@ describe("useServerHealth", () => {
     expect(await screen.findByText("status:error")).toBeInTheDocument();
     expect(screen.getByText("uptime:-")).toBeInTheDocument();
   });
+
+  it("recovers from a failed history fetch as soon as a live sample arrives", async () => {
+    server.use(
+      http.get("/api/server/health", () => HttpResponse.error()),
+      sensorsLink.addEventListener("connection", ({ client }) => {
+        client.send(
+          JSON.stringify({
+            type: "server.health",
+            data: makeHealth({
+              recorded_at: new Date(SERVER_NOW_MS + 5000).toISOString(),
+              uptime_s: 555,
+            }),
+          }),
+        );
+      }),
+    );
+    renderProbe();
+    expect(await screen.findByText("status:ready")).toBeInTheDocument();
+    expect(screen.getByText("uptime:555")).toBeInTheDocument();
+    expect(screen.getByText("count:1")).toBeInTheDocument();
+  });
 });

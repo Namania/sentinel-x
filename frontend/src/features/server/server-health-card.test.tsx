@@ -68,4 +68,12 @@ describe("ServerHealthCard", () => {
     expect(await screen.findByText("Santé du serveur indisponible")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: LINK })).toHaveAttribute("href", "/serveur");
   });
+
+  it("keeps the card a single tab stop: no focusable element inside the link", async () => {
+    const link = await card();
+    await link.findByRole("group", { name: "CPU" });
+    const anchor = screen.getByRole("link", { name: LINK });
+    expect(anchor.querySelectorAll('[tabindex]:not([tabindex="-1"]), a, button')).toHaveLength(0);
+    expect(link.queryAllByRole("application")).toHaveLength(0);
+  });
 });
