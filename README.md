@@ -93,6 +93,18 @@ l'historique. `compose.yml` monte `/sys/class/thermal` et un fichier de la parti
 Docker Desktop (Mac) il n'y a pas de zone thermique : la température s'affiche « – ».
 `SERVER_HEALTH_ENABLED=false` désactive l'échantillonnage (c'est le cas dans les tests).
 
+## Alertes
+
+Une mesure hors bornes ouvre une alerte (table `alerts`), diffusée sur le WebSocket
+(`alert.opened`) ; elle se ferme seule quand la mesure revient dans les bornes avec une marge
+(0,5 °C, 2 % d'humidité, 5 % du max gaz) : `alert.resolved`. Bornes, identiques pour tous les
+appareils : `ALERT_TEMPERATURE_MIN_C=10`, `ALERT_TEMPERATURE_MAX_C=30`, `ALERT_HUMIDITY_MIN_PCT=20`,
+`ALERT_HUMIDITY_MAX_PCT=70`, `ALERT_GAS_MAX_MV` (vide : seul l'état « alerte » de l'ESP compte).
+`GET /api/alerts?status=open|resolved|all&device_id=…&limit=…` (ouvertes d'abord),
+`GET /api/alerts/summary` → `{"open": n}`. Le Dashboard, la page `/alertes` et le badge de la nav
+suivent la liste en direct. Sans matériel : `uv run simulate-sensors --spike
+[--spike-metric temperature|humidity|gas]` envoie 5 mesures normales, 6 hors bornes, 5 normales.
+
 ## Front
 
 Prérequis : Node 24 et pnpm 12 (`corepack enable`).

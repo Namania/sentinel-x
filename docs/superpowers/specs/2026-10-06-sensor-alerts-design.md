@@ -1,7 +1,7 @@
 # Alertes capteurs : bornes, liste persistée, temps réel — design
 
 Date : 2026-10-06
-Statut : validé, à implémenter
+Statut : implémenté le 2026-10-06
 
 ## Objectif
 
