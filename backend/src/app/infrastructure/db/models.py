@@ -27,5 +27,5 @@ class SensorReadingModel(Base):
     recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     temperature_c: Mapped[float | None] = mapped_column(Float, nullable=True)
     humidity_pct: Mapped[float | None] = mapped_column(Float, nullable=True)
-    gas_ppm: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    gas_level: Mapped[int | None] = mapped_column(Integer, nullable=True)
     gas_alert: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)

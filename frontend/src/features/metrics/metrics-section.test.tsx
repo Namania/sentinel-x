@@ -47,7 +47,7 @@ describe("Dashboard (metrics only)", () => {
       http.get("/api/sensors/readings", () =>
         HttpResponse.json([
           makeReading({
-            gas_ppm: 1800,
+            gas_level: 1800,
             gas_alert: true,
             recorded_at: new Date(NOW_MS).toISOString(),
           }),

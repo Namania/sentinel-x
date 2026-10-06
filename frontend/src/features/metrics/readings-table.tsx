@@ -17,7 +17,7 @@ export function ReadingsTable({ points, bucketed }: { points: MetricPoint[]; buc
           <TableHead>{bucketed ? "Intervalle" : "Heure"}</TableHead>
           <TableHead className="text-right">Température (°C)</TableHead>
           <TableHead className="text-right">Humidité (%)</TableHead>
-          <TableHead className="text-right">Gaz (ppm)</TableHead>
+          <TableHead className="text-right">Gaz (mV)</TableHead>
           <TableHead>Alerte</TableHead>
         </TableRow>
       </TableHeader>

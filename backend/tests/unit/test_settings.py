@@ -49,3 +49,11 @@ def test_device_api_key_is_optional_but_must_be_long_when_set():
 def test_empty_device_api_key_means_unset():
     settings = Settings(_env_file=None, jwt_secret="x" * 32, device_api_key="")
     assert settings.device_api_key is None
+
+
+def test_mqtt_is_optional_with_sane_defaults():
+    settings = Settings(_env_file=None, jwt_secret="x" * 32)
+    assert settings.mqtt_host is None
+    assert (settings.mqtt_port, settings.mqtt_topic) == (1883, "sentinel/+")
+    configured = Settings(_env_file=None, jwt_secret="x" * 32, mqtt_host="mosquitto")
+    assert configured.mqtt_host == "mosquitto"

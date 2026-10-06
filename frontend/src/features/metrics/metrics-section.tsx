@@ -110,7 +110,7 @@ export function MetricsSection() {
           <TemperatureChart points={readings.points} />
           <HumidityChart points={readings.points} />
           <GasChart points={readings.points} />
-          <GasGauge value={latest?.gas_ppm ?? null} max={gasMax} />
+          <GasGauge value={latest?.gas_level ?? null} max={gasMax} />
         </div>
       )}
       {readings.status === "ready" && readings.points.length > 0 && view === "table" && (

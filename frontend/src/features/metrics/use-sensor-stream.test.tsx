@@ -14,7 +14,7 @@ function Probe({ enabled }: { enabled: boolean }) {
   return (
     <div>
       <p>connected:{String(connected)}</p>
-      <p>last:{last?.gas_ppm ?? "-"}</p>
+      <p>last:{last?.gas_level ?? "-"}</p>
     </div>
   );
 }
@@ -37,7 +37,7 @@ describe("useSensorStream", () => {
       sensorsLink.addEventListener("connection", ({ client }) => {
         tokens.push(new URL(client.url).searchParams.get("token") ?? "");
         client.send(
-          JSON.stringify({ type: "sensor.reading", data: makeReading({ gas_ppm: 777 }) }),
+          JSON.stringify({ type: "sensor.reading", data: makeReading({ gas_level: 777 }) }),
         );
         client.send(JSON.stringify({ type: "pong" }));
       }),

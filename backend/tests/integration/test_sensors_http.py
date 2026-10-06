@@ -21,7 +21,7 @@ def test_device_posts_a_reading(client):
     assert response.status_code == 201, response.text
     data = response.json()
     assert data["device_id"] == "esp-interieur"
-    assert (data["temperature_c"], data["humidity_pct"], data["gas_ppm"], data["gas_alert"]) == (
+    assert (data["temperature_c"], data["humidity_pct"], data["gas_level"], data["gas_alert"]) == (
         22.9,
         48.5,
         412,
@@ -43,7 +43,7 @@ def test_heartbeat_without_metrics_is_stored(client):
     )
     assert response.status_code == 201
     data = response.json()
-    assert (data["temperature_c"], data["humidity_pct"], data["gas_ppm"], data["gas_alert"]) == (
+    assert (data["temperature_c"], data["humidity_pct"], data["gas_level"], data["gas_alert"]) == (
         None,
         None,
         None,
@@ -152,7 +152,7 @@ def test_new_reading_is_pushed_on_the_websocket(client):
         event = ws.receive_json()
     assert event["type"] == "sensor.reading"
     assert event["data"]["id"] == response.json()["id"]
-    assert event["data"]["gas_ppm"] == 412
+    assert event["data"]["gas_level"] == 412
 
 
 def test_post_with_a_non_ascii_key_is_refused_not_a_server_error(client):

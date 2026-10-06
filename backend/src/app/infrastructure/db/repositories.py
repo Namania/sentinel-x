@@ -49,7 +49,7 @@ def _reading_to_entity(row: SensorReadingModel) -> SensorReading:
         recorded_at=row.recorded_at,
         temperature_c=row.temperature_c,
         humidity_pct=row.humidity_pct,
-        gas_ppm=row.gas_ppm,
+        gas_level=row.gas_level,
         gas_alert=row.gas_alert,
     )
 
@@ -70,7 +70,7 @@ class SqlAlchemySensorReadingRepository(SensorReadingRepository):
                 recorded_at=reading.recorded_at,
                 temperature_c=reading.temperature_c,
                 humidity_pct=reading.humidity_pct,
-                gas_ppm=reading.gas_ppm,
+                gas_level=reading.gas_level,
                 gas_alert=reading.gas_alert,
             )
         )
@@ -130,9 +130,9 @@ class SqlAlchemySensorReadingRepository(SensorReadingRepository):
                 func.avg(m.humidity_pct),
                 func.min(m.humidity_pct),
                 func.max(m.humidity_pct),
-                func.avg(m.gas_ppm),
-                func.min(m.gas_ppm),
-                func.max(m.gas_ppm),
+                func.avg(m.gas_level),
+                func.min(m.gas_level),
+                func.max(m.gas_level),
                 func.sum(case((m.gas_alert, 1), else_=0)),
             )
             .where(m.device_id == device_id, m.recorded_at >= since, m.recorded_at <= until)

@@ -14,7 +14,7 @@ def reading(device="esp-interieur", minutes=0, temp=20.0, hum=50.0, gas=400, ale
         recorded_at=T0 + timedelta(minutes=minutes),
         temperature_c=temp,
         humidity_pct=hum,
-        gas_ppm=gas,
+        gas_level=gas,
         gas_alert=alert,
     )
 

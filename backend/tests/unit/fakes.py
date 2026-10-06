@@ -73,7 +73,7 @@ class InMemorySensorReadingRepository(SensorReadingRepository):
             rows = groups[start]
             t = stats([r.temperature_c for r in rows])
             h = stats([r.humidity_pct for r in rows])
-            g = stats([r.gas_ppm for r in rows])
+            g = stats([r.gas_level for r in rows])
             buckets.append(
                 ReadingBucket(
                     bucket_start=start,

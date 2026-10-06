@@ -10,7 +10,7 @@ export function makeReading(overrides: Partial<Reading> = {}): Reading {
     recorded_at: "2026-10-06T09:00:00Z",
     temperature_c: 22.5,
     humidity_pct: 48,
-    gas_ppm: 410,
+    gas_level: 410,
     gas_alert: false,
     ...overrides,
   };
@@ -23,7 +23,7 @@ export function readingsFixture(n: number, endMs: number): Reading[] {
       recorded_at: new Date(endMs - (n - 1 - i) * 60_000).toISOString(),
       temperature_c: 20 + i * 0.5,
       humidity_pct: 40 + i,
-      gas_ppm: 400 + i * 10,
+      gas_level: 400 + i * 10,
     }),
   );
 }

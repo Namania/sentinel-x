@@ -22,7 +22,7 @@ describe("metrics api helpers", () => {
   });
 
   it("maps raw readings and buckets to the same point shape", () => {
-    const raw = toPoints([makeReading({ gas_ppm: 1600, gas_alert: true })], false);
+    const raw = toPoints([makeReading({ gas_level: 1600, gas_alert: true })], false);
     expect(raw[0]).toMatchObject({ temperature: 22.5, humidity: 48, gas: 1600, gasAlert: true });
     const bucketed = toPoints(
       [

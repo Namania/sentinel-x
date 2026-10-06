@@ -14,7 +14,7 @@ class ReadingInput:
     recorded_at: datetime | None
     temperature_c: float | None
     humidity_pct: float | None
-    gas_ppm: int | None
+    gas_level: int | None
     gas_alert: bool
 
 
@@ -25,7 +25,7 @@ class ReadingOutput:
     recorded_at: datetime
     temperature_c: float | None
     humidity_pct: float | None
-    gas_ppm: int | None
+    gas_level: int | None
     gas_alert: bool
 
     @classmethod
@@ -36,7 +36,7 @@ class ReadingOutput:
             recorded_at=reading.recorded_at,
             temperature_c=reading.temperature_c,
             humidity_pct=reading.humidity_pct,
-            gas_ppm=reading.gas_ppm,
+            gas_level=reading.gas_level,
             gas_alert=reading.gas_alert,
         )
 

@@ -43,7 +43,7 @@ class RecordReading:
             recorded_at=self._plausible_time(data.recorded_at),
             temperature_c=data.temperature_c,
             humidity_pct=data.humidity_pct,
-            gas_ppm=data.gas_ppm,
+            gas_level=data.gas_level,
             gas_alert=data.gas_alert,
         )
         async with self._uow as uow:

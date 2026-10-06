@@ -40,7 +40,7 @@ class ReadingRequest(BaseModel):
             recorded_at=self.recorded_at,
             temperature_c=self.temperature.temp if self.temperature else None,
             humidity_pct=self.temperature.humidity if self.temperature else None,
-            gas_ppm=self.gaz.quantity if self.gaz else None,
+            gas_level=self.gaz.quantity if self.gaz else None,
             gas_alert=self.gaz.mostGaz if self.gaz else False,
         )
 
@@ -51,7 +51,7 @@ class ReadingResponse(BaseModel):
     recorded_at: datetime
     temperature_c: float | None
     humidity_pct: float | None
-    gas_ppm: int | None
+    gas_level: int | None
     gas_alert: bool
 
     @classmethod
@@ -62,7 +62,7 @@ class ReadingResponse(BaseModel):
             recorded_at=output.recorded_at,
             temperature_c=output.temperature_c,
             humidity_pct=output.humidity_pct,
-            gas_ppm=output.gas_ppm,
+            gas_level=output.gas_level,
             gas_alert=output.gas_alert,
         )
 

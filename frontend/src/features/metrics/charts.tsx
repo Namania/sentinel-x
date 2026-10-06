@@ -32,7 +32,7 @@ const temperatureConfig = {
 const humidityConfig = {
   humidity: { label: "Humidité (%)", color: "var(--metric-humidity)" },
 } satisfies ChartConfig;
-const gasConfig = { gas: { label: "Gaz (ppm)", color: "var(--metric-gas)" } } satisfies ChartConfig;
+const gasConfig = { gas: { label: "Gaz (mV)", color: "var(--metric-gas)" } } satisfies ChartConfig;
 
 const axisProps = { tickLine: false, axisLine: false, tickMargin: 8, minTickGap: 32 } as const;
 // jsdom cannot measure the container; a fixed initial size keeps Recharts quiet in tests.
@@ -148,7 +148,7 @@ export function HumidityChart({ points }: { points: MetricPoint[] }) {
 
 export function GasChart({ points }: { points: MetricPoint[] }) {
   return (
-    <ChartCard title="Gaz (ppm, moyenne par intervalle)">
+    <ChartCard title="Gaz (mV, moyenne par intervalle)">
       <ChartContainer
         config={gasConfig}
         className="h-56 w-full"
@@ -209,7 +209,7 @@ export function GasGauge({ value, max }: { value: number | null; max: number }) 
       <p className="text-center text-2xl font-semibold tabular-nums">
         {formatNumber(value, 0)}{" "}
         <span className="text-muted-foreground text-sm font-normal">
-          / {formatNumber(max, 0)} ppm
+          / {formatNumber(max, 0)} mV
         </span>
       </p>
     </ChartCard>

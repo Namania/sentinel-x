@@ -19,6 +19,11 @@ class Settings(BaseSettings):
     # Shared secret the ESP32 devices send in X-Device-Key to post sensor readings.
     device_api_key: str | None = None
 
+    # MQTT broker the ESP32 devices publish to; unset → no subscriber is started.
+    mqtt_host: str | None = None
+    mqtt_port: int = 1883
+    mqtt_topic: str = "sentinel/+"
+
     @field_validator("device_api_key")
     @classmethod
     def _device_key_must_be_long(cls, value: str | None) -> str | None:

@@ -36,7 +36,7 @@ class SensorReading:
     recorded_at: datetime
     temperature_c: float | None
     humidity_pct: float | None
-    gas_ppm: int | None
+    gas_level: int | None
     gas_alert: bool
 
     @classmethod
@@ -47,22 +47,22 @@ class SensorReading:
         recorded_at: datetime,
         temperature_c: float | None,
         humidity_pct: float | None,
-        gas_ppm: int | None,
+        gas_level: int | None,
         gas_alert: bool,
     ) -> SensorReading:
         if not DEVICE_ID_PATTERN.fullmatch(device_id):
             raise InvalidReading("device_id must match [a-z0-9-]{1,64}")
         _check_range("temperature_c", temperature_c, TEMPERATURE_RANGE)
         _check_range("humidity_pct", humidity_pct, HUMIDITY_RANGE)
-        if gas_ppm is not None and gas_ppm < 0:
-            raise InvalidReading("gas_ppm must be positive")
+        if gas_level is not None and gas_level < 0:
+            raise InvalidReading("gas_level must be positive")
         return cls(
             id=uuid4(),
             device_id=device_id,
             recorded_at=to_utc(recorded_at),
             temperature_c=temperature_c,
             humidity_pct=humidity_pct,
-            gas_ppm=gas_ppm,
+            gas_level=gas_level,
             gas_alert=gas_alert,
         )
 

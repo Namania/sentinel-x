@@ -27,7 +27,7 @@ def make_input(**overrides):
         recorded_at=None,
         temperature_c=22.5,
         humidity_pct=48.0,
-        gas_ppm=410,
+        gas_level=410,
         gas_alert=False,
     )
     data.update(overrides)

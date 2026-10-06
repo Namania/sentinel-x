@@ -4,7 +4,7 @@ export type Reading = {
   recorded_at: string;
   temperature_c: number | null;
   humidity_pct: number | null;
-  gas_ppm: number | null;
+  gas_level: number | null;
   gas_alert: boolean;
 };
 
@@ -85,7 +85,7 @@ export function readingToPoint(reading: Reading): MetricPoint {
     time: Date.parse(reading.recorded_at),
     temperature: reading.temperature_c,
     humidity: reading.humidity_pct,
-    gas: reading.gas_ppm,
+    gas: reading.gas_level,
     gasAlert: reading.gas_alert,
   };
 }

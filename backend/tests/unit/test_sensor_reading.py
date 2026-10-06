@@ -14,7 +14,7 @@ def make(**overrides):
         recorded_at=NOW,
         temperature_c=22.5,
         humidity_pct=48.0,
-        gas_ppm=410,
+        gas_level=410,
         gas_alert=False,
     )
     data.update(overrides)
@@ -40,8 +40,8 @@ def test_naive_recorded_at_is_taken_as_utc():
 
 
 def test_metrics_may_all_be_missing():
-    reading = make(temperature_c=None, humidity_pct=None, gas_ppm=None)
-    assert (reading.temperature_c, reading.humidity_pct, reading.gas_ppm) == (None, None, None)
+    reading = make(temperature_c=None, humidity_pct=None, gas_level=None)
+    assert (reading.temperature_c, reading.humidity_pct, reading.gas_level) == (None, None, None)
 
 
 @pytest.mark.parametrize("device_id", ["", "ESP", "esp interieur", "a" * 65, "esp_1"])
@@ -57,7 +57,7 @@ def test_rejects_bad_device_ids(device_id):
         ("temperature_c", 125.1),
         ("humidity_pct", -0.1),
         ("humidity_pct", 100.1),
-        ("gas_ppm", -1),
+        ("gas_level", -1),
     ],
 )
 def test_rejects_out_of_range_values(field, value):
@@ -66,5 +66,5 @@ def test_rejects_out_of_range_values(field, value):
 
 
 def test_accepts_boundary_values():
-    reading = make(temperature_c=-40, humidity_pct=100, gas_ppm=0)
+    reading = make(temperature_c=-40, humidity_pct=100, gas_level=0)
     assert reading.temperature_c == -40

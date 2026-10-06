@@ -83,13 +83,13 @@ export function MetricTiles({
       />
       <Tile
         title="Gaz"
-        unit="ppm"
+        unit="mV"
         digits={0}
         color="var(--metric-gas)"
         at={at}
         alert={latest?.gas_alert}
-        value={latest?.gas_ppm ?? null}
-        previous={previous?.gas_ppm ?? null}
+        value={latest?.gas_level ?? null}
+        previous={previous?.gas_level ?? null}
       />
     </div>
   );

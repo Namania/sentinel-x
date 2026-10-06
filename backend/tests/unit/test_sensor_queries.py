@@ -18,7 +18,7 @@ def seeded():
                 recorded_at=T0 + timedelta(minutes=minutes),
                 temperature_c=temp,
                 humidity_pct=50.0,
-                gas_ppm=400,
+                gas_level=400,
                 gas_alert=False,
             )
         )

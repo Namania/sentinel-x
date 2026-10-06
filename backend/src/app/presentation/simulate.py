@@ -97,7 +97,7 @@ def run(
             sent += 1
             log(
                 f"{device_id}: {payload['temperature']['temp']} °C, "
-                f"{payload['temperature']['humidity']} %, {payload['gaz']['quantity']} ppm"
+                f"{payload['temperature']['humidity']} %, {payload['gaz']['quantity']} mV"
                 + (" ALERTE" if payload["gaz"]["mostGaz"] else "")
             )
             if count is None or sent < count:
