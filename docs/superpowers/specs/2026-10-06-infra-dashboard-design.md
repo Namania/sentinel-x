@@ -1,7 +1,7 @@
 # Dashboard écran infra : santé serveur, carte caméra, sidebar repliée — design
 
 Date : 2026-10-06
-Statut : validé, à implémenter
+Statut : implémenté le 2026-10-06
 
 ## Objectif
 
@@ -117,9 +117,10 @@ environment:
   HOST_DISK_PATH: /host/root
 ```
 
-Sous Docker Desktop (Mac), `/host/thermal/thermal_zone0` n'existe pas → température `None`, le
-front affiche « – » ; `/host/root` est le disque de la VM Linux, ce qui est acceptable en dev.
-`compose.dev.yml` n'a rien à changer.
+Sous Docker Desktop (Mac) ne partage ni `/` ni `/sys` avec les conteneurs : `compose.dev.yml` retire
+ces montages (`volumes: !override`) et remet `HOST_THERMAL_PATH` / `HOST_DISK_PATH` à leurs valeurs
+par défaut. En dev la température est donc `None` (le front affiche « – » et la page `/serveur`
+l'explique) et le disque est celui du conteneur.
 
 ### Route (`presentation/http/server.py`)
 
@@ -188,7 +189,7 @@ justifie aujourd'hui.
 - `server-health-card.tsx` : `Card` enveloppée dans un `Link to="/serveur"` (`aria-label="Santé
   du serveur, voir le détail"`). Entête « Serveur » avec un point vert si `connected`, gris sinon
   (texte alternatif « temps réel actif / interrompu »). Quatre jauges : CPU, Mémoire, Disque,
-  Température. Pied : « Charge 0,42 · 0,38 · 0,31 » et « Démarré depuis 3 j 4 h ». État
+  Température SoC (le libellé distingue la puce du Pi de la température ambiante des capteurs). Pied : « Charge 0,42 · 0,38 · 0,31 » et « Démarré depuis 3 j 4 h ». État
   `loading` → `Skeleton` ; `error` → texte « Santé du serveur indisponible » dans la carte, le
   lien reste actif. `latest === null` → valeurs « – ».
 - `server-charts.tsx` : trois graphiques pleine largeur sur l'historique : CPU % (0 → 100),

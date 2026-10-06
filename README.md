@@ -78,6 +78,20 @@ Sans matériel : `cd backend && uv run simulate-sensors` envoie des mesures fact
 d'historique (une mesure par minute) puis quitte. Tester le broker à la main :
 `docker compose exec mosquitto mosquitto_pub -t sentinel/esp1 -m '{"temperature":22.5,"humidite":48,"gaz_mv":1234,"etat_gaz":"ok"}'`.
 
+## Dashboard
+
+La page d'accueil est pensée pour un écran mural : sidebar repliée, une carte caméra (flux en
+direct, clic → `/camera`), une carte santé du serveur (clic → `/serveur`) et la section capteurs.
+
+La santé du serveur (CPU, mémoire, disque, température du SoC, charge, uptime) est lue par l'API
+dans `/proc`, `/sys/class/thermal` et `statvfs`, toutes les 5 s (`SERVER_HEALTH_INTERVAL_S`),
+gardée 30 min en mémoire (rien en base) et diffusée sur le WebSocket
+(`{"type":"server.health","data":{…}}`) ; `GET /api/server/health` renvoie le dernier point et
+l'historique. `compose.yml` monte `/sys/class/thermal` et `/` en lecture seule dans le conteneur
+`api` (`HOST_THERMAL_PATH`, `HOST_DISK_PATH`) ; `/proc` du conteneur décrit déjà l'hôte. Sous
+Docker Desktop (Mac) il n'y a pas de zone thermique : la température s'affiche « – ».
+`SERVER_HEALTH_ENABLED=false` désactive l'échantillonnage (c'est le cas dans les tests).
+
 ## Front
 
 Prérequis : Node 24 et pnpm 12 (`corepack enable`).
