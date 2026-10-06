@@ -78,3 +78,23 @@ def test_server_health_paths_come_from_the_environment(monkeypatch):
     settings = Settings(_env_file=None, jwt_secret="x" * 32)
     assert settings.host_disk_path == Path("/host/root")
     assert settings.host_thermal_path == Path("/host/thermal")
+
+
+def test_alert_thresholds_defaults_and_accessor():
+    from app.domain.alert import Thresholds
+
+    settings = Settings(_env_file=None, jwt_secret="x" * 32)
+    assert settings.thresholds() == Thresholds(
+        temperature=(10.0, 30.0), humidity=(20.0, 70.0), gas_max=None
+    )
+
+
+def test_alert_thresholds_from_env_and_inverted_bounds_rejected(monkeypatch):
+    monkeypatch.setenv("ALERT_TEMPERATURE_MAX_C", "28")
+    monkeypatch.setenv("ALERT_GAS_MAX_MV", "1500")
+    settings = Settings(_env_file=None, jwt_secret="x" * 32)
+    assert settings.thresholds().temperature == (10.0, 28.0)
+    assert settings.thresholds().gas_max == 1500
+    monkeypatch.setenv("ALERT_HUMIDITY_MIN_PCT", "80")
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, jwt_secret="x" * 32)

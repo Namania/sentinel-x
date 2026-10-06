@@ -1,7 +1,9 @@
 from pathlib import Path
 
-from pydantic import field_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from app.domain.alert import Thresholds
 
 
 class Settings(BaseSettings):
@@ -33,6 +35,30 @@ class Settings(BaseSettings):
     host_disk_path: Path = Path("/")
     server_health_interval_s: float = 5.0
     server_health_enabled: bool = True
+
+    # Sensor alert bounds, the same for every device; a reading outside opens an alert.
+    alert_temperature_min_c: float = 10.0
+    alert_temperature_max_c: float = 30.0
+    alert_humidity_min_pct: float = 20.0
+    alert_humidity_max_pct: float = 70.0
+    alert_gas_max_mv: int | None = None  # None → only the device's own gas alert flag counts
+
+    def thresholds(self) -> Thresholds:
+        return Thresholds(
+            temperature=(self.alert_temperature_min_c, self.alert_temperature_max_c),
+            humidity=(self.alert_humidity_min_pct, self.alert_humidity_max_pct),
+            gas_max=self.alert_gas_max_mv,
+        )
+
+    @field_validator("alert_gas_max_mv", mode="before")
+    @classmethod
+    def _empty_gas_max_is_none(cls, value: object) -> object:
+        return None if value == "" else value
+
+    @model_validator(mode="after")
+    def _alert_bounds_must_be_ordered(self) -> "Settings":
+        self.thresholds()  # raises ValueError on min >= max → ValidationError
+        return self
 
     @field_validator("device_api_key")
     @classmethod
