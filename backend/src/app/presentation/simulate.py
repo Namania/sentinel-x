@@ -1,7 +1,10 @@
 """Send plausible fake readings to the API, to see the dashboard without hardware.
 
     uv run simulate-sensors [--base-url http://localhost:8000] [--device esp-interieur]
-                            [--interval 2] [--count N]
+                            [--interval 2] [--count N] [--backfill-minutes M]
+
+--backfill-minutes M posts one reading per minute over the last M minutes (timestamped), then
+exits; without it the command streams live readings every --interval seconds.
 
 The device key is read from DEVICE_API_KEY (the .env file is honoured through Settings).
 """
@@ -13,6 +16,7 @@ import random
 import sys
 import time
 from collections.abc import Callable
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import httpx
@@ -60,16 +64,33 @@ def run(
     count: int | None,
     transport: httpx.BaseTransport | None = None,
     log: Callable[[str], None] = print,
+    backfill_minutes: int | None = None,
 ) -> int:
-    """Post readings until `count` is reached (or forever). Returns how many were accepted."""
+    """Post readings until `count` is reached (or forever). Returns how many were accepted.
+
+    With `backfill_minutes`, posts one timestamped reading per minute over that span (oldest
+    first) and returns, so the dashboard has history to show.
+    """
     walk = SensorWalk(random.Random())
     sent = 0
+    headers = {"X-Device-Key": device_key}
     with httpx.Client(base_url=base_url, transport=transport, timeout=5.0) as client:
+        if backfill_minutes is not None:
+            end = datetime.now(UTC).replace(microsecond=0)
+            for offset in range(backfill_minutes - 1, -1, -1):
+                payload = walk.next_payload(device_id)
+                payload["recorded_at"] = (end - timedelta(minutes=offset)).isoformat()
+                response = client.post("/sensors/readings", json=payload, headers=headers)
+                if response.status_code != 201:
+                    log(f"refusé ({response.status_code}) : {response.text}")
+                    return sent
+                sent += 1
+            log(f"{sent} mesures d'historique envoyées pour {device_id}")
+            return sent
+
         while count is None or sent < count:
             payload = walk.next_payload(device_id)
-            response = client.post(
-                "/sensors/readings", json=payload, headers={"X-Device-Key": device_key}
-            )
+            response = client.post("/sensors/readings", json=payload, headers=headers)
             if response.status_code != 201:
                 log(f"refusé ({response.status_code}) : {response.text}")
                 break
@@ -90,13 +111,26 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--device", default="esp-interieur")
     parser.add_argument("--interval", type=float, default=2.0, help="secondes entre deux mesures")
     parser.add_argument("--count", type=int, default=None, help="nombre de mesures (infini sinon)")
+    parser.add_argument(
+        "--backfill-minutes",
+        type=int,
+        default=None,
+        help="remplit l'historique : une mesure par minute sur les N dernières minutes, puis quitte",
+    )
     args = parser.parse_args(argv)
     key = Settings().device_api_key
     if not key:
         print("DEVICE_API_KEY manquant dans backend/.env", file=sys.stderr)
         return 2
     try:
-        run(args.base_url, key, args.device, args.interval, args.count)
+        run(
+            args.base_url,
+            key,
+            args.device,
+            args.interval,
+            args.count,
+            backfill_minutes=args.backfill_minutes,
+        )
     except KeyboardInterrupt:
         pass
     return 0

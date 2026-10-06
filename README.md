@@ -68,7 +68,8 @@ puis diffusée sur le WebSocket (`{"type":"sensor.reading","data":{…}}`). Hist
 appareil : `GET /api/sensors/latest`, appareils : `GET /api/sensors/devices`.
 
 Sans matériel : `cd backend && uv run simulate-sensors` envoie des mesures factices toutes les 2 s
-(`--base-url`, `--device`, `--interval`, `--count`). Les graphiques sont dans le Dashboard.
+(`--base-url`, `--device`, `--interval`, `--count`) ; `--backfill-minutes 1440` remplit 24 h
+d'historique (une mesure par minute) puis quitte. Les graphiques sont dans le Dashboard.
 
 ## Front
 

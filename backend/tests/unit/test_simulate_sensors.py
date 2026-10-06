@@ -1,5 +1,6 @@
 import json
 import random
+from datetime import UTC, datetime, timedelta
 
 import httpx
 
@@ -43,3 +44,28 @@ def test_run_posts_readings_with_the_device_key():
     assert str(seen[0].url) == "http://api.test/sensors/readings"
     assert seen[0].headers["X-Device-Key"] == "k" * 16
     assert json.loads(seen[0].content)["device_id"] == "esp-interieur"
+
+
+def test_backfill_posts_timestamped_readings_oldest_first():
+    seen: list[dict] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(json.loads(request.content))
+        return httpx.Response(201, json={"ok": True})
+
+    sent = run(
+        base_url="http://api.test",
+        device_key="k" * 16,
+        device_id="esp-interieur",
+        interval=0,
+        count=None,
+        transport=httpx.MockTransport(handler),
+        log=lambda _: None,
+        backfill_minutes=3,
+    )
+    assert sent == 3
+    stamps = [p["recorded_at"] for p in seen]
+    assert stamps == sorted(stamps)
+    parsed = [datetime.fromisoformat(s) for s in stamps]
+    assert (parsed[1] - parsed[0]).total_seconds() == 60
+    assert datetime.now(UTC) - parsed[-1] < timedelta(seconds=5)
