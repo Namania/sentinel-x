@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import { routes } from "@/app/router";
 import { REFRESH_TOKEN_KEY } from "@/features/auth/token-storage";
 import { renderRoutes } from "@/test/render";
+import { makeAlert } from "@/test/alerts";
 import { makeReading, NOW_MS } from "@/test/sensors";
 import { sensorsLink, server, VALID_REFRESH } from "@/test/server";
 
@@ -43,9 +44,24 @@ describe("Sensors section of the Dashboard", () => {
     expect(section.queryByText("Alerte gaz")).not.toBeInTheDocument();
   });
 
-  it("flags a gas alert on the gas tile", async () => {
+  it("flags a tile when an open alert exists for its metric", async () => {
     server.use(
-      http.get("/api/sensors/readings", () =>
+      http.get("/api/alerts", () =>
+        HttpResponse.json([makeAlert({ metric: "gas", threshold: 0 })]),
+      ),
+    );
+    renderDashboard();
+    const section = await metrics();
+    const gas = within(await section.findByRole("group", { name: "Gaz" }));
+    expect(await gas.findByText("Alerte")).toBeInTheDocument();
+    expect(
+      within(section.getByRole("group", { name: "Température" })).queryByText("Alerte"),
+    ).toBeNull();
+  });
+
+  it("does not flag a tile from the raw gas flag alone", async () => {
+    server.use(
+      http.get("/api/sensors/latest", () =>
         HttpResponse.json([
           makeReading({
             gas_level: 1800,
@@ -57,7 +73,8 @@ describe("Sensors section of the Dashboard", () => {
     );
     renderDashboard();
     const section = await metrics();
-    expect(await section.findByText("Alerte gaz")).toBeInTheDocument();
+    await section.findByRole("group", { name: "Gaz" });
+    expect(section.queryByText("Alerte gaz")).not.toBeInTheDocument();
   });
 
   it("switches to the table view and lists the readings", async () => {

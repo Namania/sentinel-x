@@ -1,6 +1,7 @@
 import { AlertTriangle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import type { Alert } from "@/features/alerts/alerts-api";
 import { formatDelta, formatNumber, formatTime } from "@/lib/format-number";
 import type { Reading } from "./metrics-api";
 
@@ -31,7 +32,7 @@ function Tile({ title, unit, value, previous, digits, color, at, alert }: TilePr
         {alert && (
           <Badge variant="destructive" className="gap-1">
             <AlertTriangle className="size-3" aria-hidden="true" />
-            Alerte gaz
+            Alerte
           </Badge>
         )}
       </CardHeader>
@@ -56,11 +57,15 @@ function Tile({ title, unit, value, previous, digits, color, at, alert }: TilePr
 export function MetricTiles({
   latest,
   previous,
+  openAlerts,
 }: {
   latest: Reading | null;
   previous: Reading | null;
+  /** Open alerts of the displayed device: the one source of truth for the « Alerte » badge. */
+  openAlerts: Alert[];
 }) {
   const at = latest ? Date.parse(latest.recorded_at) : null;
+  const flagged = new Set(openAlerts.map((a) => a.metric));
   return (
     <div className="grid gap-4 md:grid-cols-3">
       <Tile
@@ -69,6 +74,7 @@ export function MetricTiles({
         digits={1}
         color="var(--metric-temperature)"
         at={at}
+        alert={flagged.has("temperature")}
         value={latest?.temperature_c ?? null}
         previous={previous?.temperature_c ?? null}
       />
@@ -78,6 +84,7 @@ export function MetricTiles({
         digits={0}
         color="var(--metric-humidity)"
         at={at}
+        alert={flagged.has("humidity")}
         value={latest?.humidity_pct ?? null}
         previous={previous?.humidity_pct ?? null}
       />
@@ -87,7 +94,7 @@ export function MetricTiles({
         digits={0}
         color="var(--metric-gas)"
         at={at}
-        alert={latest?.gas_alert}
+        alert={flagged.has("gas")}
         value={latest?.gas_level ?? null}
         previous={previous?.gas_level ?? null}
       />

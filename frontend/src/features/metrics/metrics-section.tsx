@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
+import type { Alert } from "@/features/alerts/alerts-api";
 import { useAuth } from "@/features/auth/use-auth";
 import { GasChart, GasGauge, HumidityChart, TemperatureChart } from "./charts";
 import { MetricTiles } from "./metric-tiles";
@@ -16,7 +17,8 @@ import { ReadingsTable } from "./readings-table";
 import { useReadings } from "./use-readings";
 import { useSensorStream } from "./use-sensor-stream";
 
-export function MetricsSection() {
+/** Sensors of one device; `openAlerts` flags the tiles whose metric is out of bounds. */
+export function MetricsSection({ openAlerts = [] }: { openAlerts?: Alert[] }) {
   const { authFetch } = useAuth();
   const [devices, setDevices] = useState<Device[]>([]);
   const [devicesStatus, setDevicesStatus] = useState<"loading" | "ready" | "error">("loading");
@@ -87,7 +89,11 @@ export function MetricsSection() {
         view={view}
         onViewChange={setView}
       />
-      <MetricTiles latest={latest} previous={previous} />
+      <MetricTiles
+        latest={latest}
+        previous={previous}
+        openAlerts={openAlerts.filter((a) => a.device_id === deviceId)}
+      />
       {devicesStatus === "error" && (
         <p className="text-destructive">Impossible de charger la liste des appareils.</p>
       )}

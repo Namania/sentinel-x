@@ -35,4 +35,13 @@ describe("Dashboard (wall screen)", () => {
     expect(router.state.location.pathname).toBe("/camera");
     expect(await screen.findByRole("heading", { name: "Caméra" })).toBeInTheDocument();
   });
+
+  it("shows the alerts card between the top row and the sensors, linking to /alertes", async () => {
+    const user = userEvent.setup();
+    const { router } = renderDashboard();
+    const card = await screen.findByRole("link", { name: "Alertes, voir l'historique" });
+    expect(card).toHaveAttribute("href", "/alertes");
+    await user.click(card);
+    expect(router.state.location.pathname).toBe("/alertes");
+  });
 });
