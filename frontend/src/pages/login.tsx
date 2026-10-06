@@ -51,7 +51,7 @@ export function LoginPage() {
           <CardTitle>
             <h1 className="text-lg font-semibold">Connexion</h1>
           </CardTitle>
-          <CardDescription>Accède à la caméra sentinel-x.</CardDescription>
+          <CardDescription>Connecte-toi à ton espace sentinel-x.</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" noValidate>
