@@ -28,3 +28,4 @@ services:
     # !override replaces the production mapping (8080:80) instead of merging with it.
     ports: !override
       - "8080:5173"
+
