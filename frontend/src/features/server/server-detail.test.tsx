@@ -1,8 +1,9 @@
 import { screen, within } from "@testing-library/react";
+import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
 import { REFRESH_TOKEN_KEY } from "@/features/auth/token-storage";
 import { renderRoutes } from "@/test/render";
-import { VALID_REFRESH } from "@/test/server";
+import { server, VALID_REFRESH } from "@/test/server";
 import { healthFixture, SERVER_NOW_MS } from "@/test/server-health";
 import { toServerPoints } from "./server-api";
 import { ServerDetail } from "./server-detail";
@@ -25,5 +26,21 @@ describe("ServerDetail", () => {
     expect(within(screen.getByRole("group", { name: "Disque" })).getByText("20,0 / 64,0 Gio"));
     expect(screen.getByText("Charge 0,42 · 0,38 · 0,31")).toBeInTheDocument();
     expect(document.querySelectorAll(".recharts-surface").length).toBeGreaterThanOrEqual(3);
+  });
+
+  it("explains the missing thermal zone instead of drawing an empty temperature chart", async () => {
+    server.use(
+      http.get("/api/server/health", () => {
+        const history = healthFixture(3, SERVER_NOW_MS).map((h) => ({ ...h, temperature_c: null }));
+        return HttpResponse.json({ latest: history.at(-1), history });
+      }),
+    );
+    localStorage.setItem(REFRESH_TOKEN_KEY, VALID_REFRESH);
+    renderRoutes([{ path: "/serveur", element: <ServerDetail /> }], "/serveur");
+    await screen.findByRole("heading", { name: "CPU (%)" });
+    expect(screen.getByRole("heading", { name: "Température (°C)" })).toBeInTheDocument();
+    expect(
+      screen.getByText("Aucune sonde thermique exposée par l'hôte (normal sous Docker Desktop)."),
+    ).toBeInTheDocument();
   });
 });

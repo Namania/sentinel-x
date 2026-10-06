@@ -105,6 +105,15 @@ export function MemoryChart({ points, totalGib }: { points: ServerPoint[]; total
 }
 
 export function ServerTemperatureChart({ points }: { points: ServerPoint[] }) {
+  if (points.length > 0 && points.every((p) => p.temp === null)) {
+    return (
+      <ChartCard title="Température (°C)">
+        <p className="text-muted-foreground grid h-56 place-items-center text-sm">
+          Aucune sonde thermique exposée par l'hôte (normal sous Docker Desktop).
+        </p>
+      </ChartCard>
+    );
+  }
   return (
     <ChartCard title="Température (°C)">
       <ChartContainer

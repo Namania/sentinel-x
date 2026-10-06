@@ -7,7 +7,10 @@ services:
     environment:
       # File events through Docker bind mounts are not reliable: poll instead of waiting for them.
       WATCHFILES_FORCE_POLLING: "true"
-    volumes:
+      # Docker Desktop (Mac) does not share / nor /sys: read the container's own view in dev.
+      HOST_THERMAL_PATH: /sys/class/thermal
+      HOST_DISK_PATH: /
+    volumes: !override
       - ./backend/src:/app/src
       - ./backend/alembic:/app/alembic
     ports:

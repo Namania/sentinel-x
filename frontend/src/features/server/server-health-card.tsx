@@ -46,7 +46,7 @@ function Gauges({ latest, history }: { latest: ServerHealth; history: ServerHeal
         series={history.map((h) => ratio(h.disk_used_bytes, h.disk_total_bytes))}
       />
       <HealthGauge
-        label="Température"
+        label="Température SoC"
         valueText={formatTemperature(latest.temperature_c)}
         ratio={latest.temperature_c === null ? null : latest.temperature_c / 100}
         warn={(latest.temperature_c ?? 0) >= TEMPERATURE_WARN_C}
@@ -65,7 +65,7 @@ export function ServerHealthCard({ className }: { className?: string }) {
       aria-label="Santé du serveur, voir le détail"
       className={cn("block rounded-xl focus-visible:ring-2 focus-visible:outline-none", className)}
     >
-      <Card className="hover:bg-accent/40 h-full transition-colors">
+      <Card className="hover:bg-accent/40 flex h-full flex-col transition-colors">
         <CardHeader className="flex flex-row items-center justify-between pb-2">
           <CardTitle className="text-sm font-medium">Serveur</CardTitle>
           <span className="flex items-center gap-1.5 text-xs">
@@ -81,7 +81,7 @@ export function ServerHealthCard({ className }: { className?: string }) {
             </span>
           </span>
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent className="flex flex-1 flex-col justify-between gap-3">
           {status === "loading" && (
             <Skeleton
               role="status"

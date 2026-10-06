@@ -30,7 +30,7 @@ describe("ServerHealthCard", () => {
     expect(cpu.getByText("13 %")).toBeInTheDocument();
     expect(within(link.getByRole("group", { name: "Mémoire" })).getByText("2,0 / 8,0 Gio"));
     expect(within(link.getByRole("group", { name: "Disque" })).getByText("20,0 / 64,0 Gio"));
-    expect(within(link.getByRole("group", { name: "Température" })).getByText("48,2 °C"));
+    expect(within(link.getByRole("group", { name: "Température SoC" })).getByText("48,2 °C"));
     expect(link.getByText("Charge 0,42 · 0,38 · 0,31")).toBeInTheDocument();
     expect(link.getByText("Démarré depuis 3 j 4 h")).toBeInTheDocument();
   });
@@ -44,7 +44,7 @@ describe("ServerHealthCard", () => {
     );
     const link = await card();
     expect(within(await link.findByRole("group", { name: "CPU" })).getByText("–"));
-    expect(within(link.getByRole("group", { name: "Température" })).getByText("–"));
+    expect(within(link.getByRole("group", { name: "Température SoC" })).getByText("–"));
   });
 
   it("marks a gauge above its threshold without hiding the value", async () => {

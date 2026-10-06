@@ -1,3 +1,4 @@
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { HealthGauge } from "./health-gauge";
 import { formatBytesPair, formatUptime, loadLabel, ratio, USAGE_WARN_PCT } from "./server-api";
@@ -26,18 +27,32 @@ export function ServerDetail() {
       )}
       {latest && (
         <>
-          <div className="grid gap-4 md:grid-cols-2">
-            <HealthGauge
-              label="Disque"
-              valueText={formatBytesPair(latest.disk_used_bytes, latest.disk_total_bytes)}
-              ratio={disk}
-              warn={(disk ?? 0) >= USAGE_WARN_PCT / 100}
-              series={history.map((h) => ratio(h.disk_used_bytes, h.disk_total_bytes))}
-            />
-            <div className="text-muted-foreground self-center text-sm tabular-nums">
-              <p>{loadLabel(latest)}</p>
-              <p>Démarré depuis {formatUptime(latest.uptime_s)}</p>
-            </div>
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">Stockage</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <HealthGauge
+                  label="Disque"
+                  valueText={formatBytesPair(latest.disk_used_bytes, latest.disk_total_bytes)}
+                  ratio={disk}
+                  warn={(disk ?? 0) >= USAGE_WARN_PCT / 100}
+                  series={history.map((h) => ratio(h.disk_used_bytes, h.disk_total_bytes))}
+                />
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">Charge et disponibilité</CardTitle>
+              </CardHeader>
+              <CardContent className="text-sm tabular-nums">
+                <p>{loadLabel(latest)}</p>
+                <p className="text-muted-foreground">
+                  Démarré depuis {formatUptime(latest.uptime_s)}
+                </p>
+              </CardContent>
+            </Card>
           </div>
           <ServerCharts history={history} />
         </>
