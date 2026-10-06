@@ -36,3 +36,11 @@ def test_camera_stream_url_is_optional():
         _env_file=None, jwt_secret="x" * 32, camera_stream_url="http://10.0.0.5:81/stream"
     )
     assert configured.camera_stream_url == "http://10.0.0.5:81/stream"
+
+
+def test_device_api_key_is_optional_but_must_be_long_when_set():
+    assert Settings(_env_file=None, jwt_secret="x" * 32).device_api_key is None
+    configured = Settings(_env_file=None, jwt_secret="x" * 32, device_api_key="k" * 16)
+    assert configured.device_api_key == "k" * 16
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, jwt_secret="x" * 32, device_api_key="short")

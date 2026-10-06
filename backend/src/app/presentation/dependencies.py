@@ -1,7 +1,8 @@
+import secrets
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import Depends, HTTPException, Query, status
+from fastapi import Depends, Header, HTTPException, Query, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from starlette.requests import HTTPConnection
 
@@ -98,6 +99,20 @@ def get_current_user_id_from_header_or_query(
     return user_id
 
 
+def require_device_key(
+    settings: Annotated[Settings, Depends(get_settings)],
+    x_device_key: Annotated[str | None, Header(alias="X-Device-Key")] = None,
+) -> None:
+    """Guard for device ingestion routes: a shared key, never a user token."""
+    if not settings.device_api_key:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Device ingestion not configured",
+        )
+    if x_device_key is None or not secrets.compare_digest(x_device_key, settings.device_api_key):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid device key")
+
+
 SettingsDep = Annotated[Settings, Depends(get_settings)]
 UowDep = Annotated[UnitOfWork, Depends(get_uow)]
 HasherDep = Annotated[PasswordHasher, Depends(get_hasher)]
@@ -106,3 +121,4 @@ HubDep = Annotated[ConnectionHub, Depends(get_hub)]
 CurrentUserIdDep = Annotated[UUID, Depends(get_current_user_id)]
 StreamUserIdDep = Annotated[UUID, Depends(get_current_user_id_from_header_or_query)]
 CameraRelayDep = Annotated[CameraRelay | None, Depends(get_camera_relay)]
+DeviceKeyDep = Annotated[None, Depends(require_device_key)]

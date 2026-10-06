@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
 
-from app.domain.errors import EmailAlreadyUsed, InvalidCredentials, UserNotFound
+from app.domain.errors import EmailAlreadyUsed, InvalidCredentials, InvalidReading, UserNotFound
 
 
 def register_error_handlers(app: FastAPI) -> None:
@@ -23,4 +23,10 @@ def register_error_handlers(app: FastAPI) -> None:
     async def _user_not_found(_: Request, __: UserNotFound) -> JSONResponse:
         return JSONResponse(
             status_code=status.HTTP_404_NOT_FOUND, content={"detail": "User not found"}
+        )
+
+    @app.exception_handler(InvalidReading)
+    async def _invalid_reading(_: Request, exc: InvalidReading) -> JSONResponse:
+        return JSONResponse(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, content={"detail": str(exc)}
         )

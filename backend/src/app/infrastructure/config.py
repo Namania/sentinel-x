@@ -16,6 +16,16 @@ class Settings(BaseSettings):
     # MJPEG stream of the ESP32 camera, e.g. http://192.168.1.50:81/stream
     camera_stream_url: str | None = None
 
+    # Shared secret the ESP32 devices send in X-Device-Key to post sensor readings.
+    device_api_key: str | None = None
+
+    @field_validator("device_api_key")
+    @classmethod
+    def _device_key_must_be_long(cls, value: str | None) -> str | None:
+        if value is not None and len(value) < 16:
+            raise ValueError("DEVICE_API_KEY must be at least 16 characters")
+        return value
+
     jwt_secret: str
     jwt_access_ttl_seconds: int = 900
     jwt_refresh_ttl_seconds: int = 604800

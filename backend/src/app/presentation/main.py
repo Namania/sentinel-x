@@ -8,7 +8,7 @@ from app.infrastructure.camera.relay import CameraRelay
 from app.infrastructure.config import Settings
 from app.infrastructure.db.engine import create_engine, create_session_factory
 from app.infrastructure.realtime.hub import ConnectionHub
-from app.presentation.http import auth, camera, health, users
+from app.presentation.http import auth, camera, health, sensors, users
 from app.presentation.http.errors import register_error_handlers
 from app.presentation.ws import router as ws_router
 
@@ -25,7 +25,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app = FastAPI(
         title="sentinel-x API",
         version="0.1.0",
-        description="Authentification JWT, canal WebSocket temps réel et relais vidéo caméra.",
+        description="Authentification JWT, canal WebSocket temps réel, relais vidéo caméra et "
+        "mesures capteurs.",
         root_path=settings.api_root_path,
         lifespan=lifespan,
     )
@@ -39,6 +40,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(auth.router)
     app.include_router(users.router)
     app.include_router(camera.router)
+    app.include_router(sensors.router)
     app.include_router(ws_router.router)
     return app
 
