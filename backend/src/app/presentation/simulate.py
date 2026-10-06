@@ -2,9 +2,12 @@
 
     uv run simulate-sensors [--base-url http://localhost:8000] [--device esp-interieur]
                             [--interval 2] [--count N] [--backfill-minutes M]
+                            [--spike [--spike-metric temperature|humidity|gas]]
 
 --backfill-minutes M posts one reading per minute over the last M minutes (timestamped), then
-exits; without it the command streams live readings every --interval seconds.
+exits; --spike posts 5 normal readings, 6 out of the default alert bounds, 5 normal, then exits
+(one alert opens and resolves); without either the command streams live readings every
+--interval seconds.
 
 The device key is read from DEVICE_API_KEY (the .env file is honoured through Settings).
 """
@@ -38,7 +41,7 @@ class SensorWalk:
     def _step(self, value: float, step: float, low: float, high: float) -> float:
         return min(high, max(low, value + self._rng.uniform(-step, step)))
 
-    def next_payload(self, device_id: str) -> dict[str, Any]:
+    def next_payload(self, device_id: str, spike: str | None = None) -> dict[str, Any]:
         self.temperature = self._step(self.temperature, 0.3, 15.0, 35.0)
         self.humidity = self._step(self.humidity, 1.0, 20.0, 90.0)
         if self._rng.random() < 0.02:  # a spike that takes a few readings to decay
@@ -46,7 +49,7 @@ class SensorWalk:
         else:
             self.gas = self._step(self.gas * 0.9 + 40, 30, 200.0, 3000.0)
         quantity = int(round(self.gas))
-        return {
+        payload: dict[str, Any] = {
             "device_id": device_id,
             "gaz": {"mostGaz": quantity >= GAS_ALERT_PPM, "quantity": quantity},
             "temperature": {
@@ -54,6 +57,14 @@ class SensorWalk:
                 "temp": round(self.temperature, 1),
             },
         }
+        # Values beyond the API's default alert bounds (30 °C, 70 %) or the device's own flag.
+        if spike == "temperature":
+            payload["temperature"]["temp"] = 33.0
+        elif spike == "humidity":
+            payload["temperature"]["humidity"] = 78.0
+        elif spike == "gas":
+            payload["gaz"] = {"mostGaz": True, "quantity": max(quantity, 1600)}
+        return payload
 
 
 def run(
@@ -65,6 +76,7 @@ def run(
     transport: httpx.BaseTransport | None = None,
     log: Callable[[str], None] = print,
     backfill_minutes: int | None = None,
+    spike: str | None = None,
 ) -> int:
     """Post readings until `count` is reached (or forever). Returns how many were accepted.
 
@@ -86,6 +98,21 @@ def run(
                     return sent
                 sent += 1
             log(f"{sent} mesures d'historique envoyées pour {device_id}")
+            return sent
+
+        if spike is not None:
+            # 5 normal readings, 6 out of bounds, 5 normal: one alert opens, then resolves.
+            for i in range(16):
+                burst = 5 <= i < 11
+                payload = walk.next_payload(device_id, spike if burst else None)
+                response = client.post("/sensors/readings", json=payload, headers=headers)
+                if response.status_code != 201:
+                    log(f"refusé ({response.status_code}) : {response.text}")
+                    return sent
+                sent += 1
+                log(f"{device_id}: {'HORS BORNES' if burst else 'normal'} {payload['temperature']}")
+                if i < 15:
+                    time.sleep(interval)
             return sent
 
         while count is None or sent < count:
@@ -117,6 +144,17 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="remplit l'historique (une mesure par minute sur N minutes) puis quitte",
     )
+    parser.add_argument(
+        "--spike",
+        action="store_true",
+        help="5 mesures normales, 6 hors bornes, 5 normales, puis quitte",
+    )
+    parser.add_argument(
+        "--spike-metric",
+        choices=("temperature", "humidity", "gas"),
+        default="temperature",
+        help="métrique poussée hors bornes par --spike",
+    )
     args = parser.parse_args(argv)
     key = Settings().device_api_key
     if not key:
@@ -130,6 +168,7 @@ def main(argv: list[str] | None = None) -> int:
             args.interval,
             args.count,
             backfill_minutes=args.backfill_minutes,
+            spike=args.spike_metric if args.spike else None,
         )
     except KeyboardInterrupt:
         pass

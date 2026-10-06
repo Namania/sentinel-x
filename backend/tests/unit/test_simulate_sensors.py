@@ -69,3 +69,34 @@ def test_backfill_posts_timestamped_readings_oldest_first():
     parsed = [datetime.fromisoformat(s) for s in stamps]
     assert (parsed[1] - parsed[0]).total_seconds() == 60
     assert datetime.now(UTC) - parsed[-1] < timedelta(seconds=5)
+
+
+def test_spike_overrides_one_metric():
+    walk = SensorWalk(random.Random(3))
+    assert walk.next_payload("esp-interieur", spike="temperature")["temperature"]["temp"] == 33.0
+    assert walk.next_payload("esp-interieur", spike="humidity")["temperature"]["humidity"] == 78.0
+    gas = walk.next_payload("esp-interieur", spike="gas")["gaz"]
+    assert gas["mostGaz"] is True and gas["quantity"] >= 1600
+
+
+def test_run_with_spike_posts_five_normal_six_hot_five_normal_then_stops():
+    bodies: list[dict] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        bodies.append(json.loads(request.content))
+        return httpx.Response(201, json={"ok": True})
+
+    sent = run(
+        base_url="http://api.test",
+        device_key="k" * 16,
+        device_id="esp-interieur",
+        interval=0,
+        count=None,
+        transport=httpx.MockTransport(handler),
+        log=lambda _: None,
+        spike="temperature",
+    )
+    assert sent == 16
+    temps = [b["temperature"]["temp"] for b in bodies]
+    assert all(t == 33.0 for t in temps[5:11])
+    assert all(t < 33.0 for t in temps[:5] + temps[11:])
