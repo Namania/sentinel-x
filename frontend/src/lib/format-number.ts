@@ -26,7 +26,7 @@ export function formatDelta(
   if (current === null || previous === null) return null;
   const delta = current - previous;
   const magnitude = formatter(digits).format(Math.abs(delta));
-  if (Number(magnitude.replace(",", ".").replace(/\u202f/g, "")) === 0) return magnitude;
+  if (Math.round(Math.abs(delta) * 10 ** digits) === 0) return magnitude;
   return `${delta < 0 ? "−" : "+"}${magnitude}`;
 }
 

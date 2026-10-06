@@ -74,7 +74,7 @@ Une route HTTP équivalente existe pour les tests : `POST /api/sensors/readings`
 appareil : `GET /api/sensors/latest`, appareils : `GET /api/sensors/devices`.
 
 Sans matériel : `cd backend && uv run simulate-sensors` envoie des mesures factices toutes les 2 s
-(`--base-url`, `--device`, `--interval`, `--count`) ; `--backfill-minutes 1440` remplit 24 h
+(`--base-url`, `--device`, `--interval`, `--count` ; sur le Pi, derrière nginx : `--base-url http://localhost:8080/api`) ; `--backfill-minutes 1440` remplit 24 h
 d'historique (une mesure par minute) puis quitte. Tester le broker à la main :
 `docker compose exec mosquitto mosquitto_pub -t sentinel/esp1 -m '{"temperature":22.5,"humidite":48,"gaz_mv":1234,"etat_gaz":"ok"}'`.
 

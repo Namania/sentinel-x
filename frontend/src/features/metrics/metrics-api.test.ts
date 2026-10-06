@@ -51,8 +51,41 @@ describe("metrics api helpers", () => {
     });
   });
 
+  it("keeps the bucket maximum so the gauge compares like with like", () => {
+    const raw = toPoints([makeReading({ gas_level: 1600 })], false);
+    expect(raw[0]!.gasMax).toBe(1600);
+    const [point] = toPoints(
+      [
+        {
+          bucket_start: "2026-10-06T09:00:00Z",
+          count: 3,
+          temperature_avg: 21,
+          temperature_min: 20,
+          temperature_max: 22,
+          humidity_avg: 50,
+          humidity_min: 45,
+          humidity_max: 55,
+          gas_avg: 500,
+          gas_min: 400,
+          gas_max: 900,
+          gas_alerts: 0,
+        },
+      ],
+      true,
+    );
+    expect(point!.gas).toBe(500);
+    expect(point!.gasMax).toBe(900);
+  });
+
   it("appends a live reading as a new raw point and drops points outside the range", () => {
-    const old = { time: NOW - 16 * 60_000, temperature: 1, humidity: 1, gas: 1, gasAlert: false };
+    const old = {
+      time: NOW - 16 * 60_000,
+      temperature: 1,
+      humidity: 1,
+      gas: 1,
+      gasMax: 1,
+      gasAlert: false,
+    };
     const points = appendLive(
       [old],
       makeReading({ recorded_at: new Date(NOW).toISOString() }),
@@ -78,7 +111,7 @@ describe("metrics api helpers", () => {
       60_000,
     );
     expect(points).toHaveLength(1);
-    expect(points[0]).toMatchObject({ time: NOW - 30_000, gasAlert: true });
+    expect(points[0]).toMatchObject({ time: NOW - 30_000, gasMax: null, gasAlert: true });
     expect(points[0]!.temperature).toBeCloseTo(21.25);
   });
 });

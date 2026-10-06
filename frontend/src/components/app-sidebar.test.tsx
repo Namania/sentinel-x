@@ -72,7 +72,7 @@ describe("AppSidebar", () => {
       await act(async () => {
         await user.click(screen.getByRole("button", { name: "Afficher ou masquer le menu" }));
       });
-      const sheet = within(await screen.findByRole("dialog"));
+      const sheet = within(await screen.findByRole("dialog", { name: "Menu" }));
       await user.click(sheet.getByRole("link", { name: "Caméra" }));
       expect(await screen.findByRole("heading", { name: "Caméra" })).toBeInTheDocument();
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();

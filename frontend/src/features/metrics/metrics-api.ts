@@ -77,6 +77,8 @@ export type MetricPoint = {
   temperature: number | null;
   humidity: number | null;
   gas: number | null;
+  /** Highest gas level behind this point (the reading itself, or the bucket maximum). */
+  gasMax: number | null;
   gasAlert: boolean;
 };
 
@@ -86,6 +88,7 @@ export function readingToPoint(reading: Reading): MetricPoint {
     temperature: reading.temperature_c,
     humidity: reading.humidity_pct,
     gas: reading.gas_level,
+    gasMax: reading.gas_level,
     gasAlert: reading.gas_alert,
   };
 }
@@ -97,6 +100,7 @@ export function toPoints(rows: Reading[] | Bucket[], bucketed: boolean): MetricP
     temperature: b.temperature_avg,
     humidity: b.humidity_avg,
     gas: b.gas_avg,
+    gasMax: b.gas_max,
     gasAlert: b.gas_alerts > 0,
   }));
 }
@@ -127,6 +131,10 @@ export function appendLive(
       temperature: mean(last.temperature, point.temperature),
       humidity: mean(last.humidity, point.humidity),
       gas: mean(last.gas, point.gas),
+      gasMax:
+        Math.max(last.gasMax ?? -Infinity, point.gasMax ?? -Infinity) === -Infinity
+          ? null
+          : Math.max(last.gasMax ?? -Infinity, point.gasMax ?? -Infinity),
       gasAlert: last.gasAlert || point.gasAlert,
     };
     return [...kept.slice(0, -1), merged];

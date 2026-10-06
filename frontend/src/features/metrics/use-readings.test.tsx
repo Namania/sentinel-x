@@ -1,10 +1,11 @@
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
+import { useState } from "react";
 import { describe, expect, it } from "vitest";
 import { REFRESH_TOKEN_KEY } from "@/features/auth/token-storage";
 import { renderWithProviders } from "@/test/render";
-import { makeReading, NOW_MS } from "@/test/sensors";
+import { makeReading, NOW_MS, readingsFixture } from "@/test/sensors";
 import { server, VALID_REFRESH } from "@/test/server";
 import type { Range } from "./metrics-api";
 import { useReadings } from "./use-readings";
@@ -33,6 +34,16 @@ function Probe({ range }: { range: Range }) {
         push-other
       </button>
     </div>
+  );
+}
+
+function RangeSwitcher() {
+  const [range, setRange] = useState<Range>("15m");
+  return (
+    <>
+      <Probe range={range} />
+      <button onClick={() => setRange("1h")}>range-1h</button>
+    </>
   );
 }
 
@@ -78,6 +89,26 @@ describe("useReadings", () => {
     expect(screen.getByText("points:6")).toBeInTheDocument();
     expect(screen.getByText("latest:30")).toBeInTheDocument();
     expect(screen.getByText("previous:22")).toBeInTheDocument();
+  });
+
+  it("goes back to loading and drops the old series when the range changes", async () => {
+    server.use(
+      http.get("/api/sensors/readings", async ({ request }) => {
+        if (new URL(request.url).searchParams.get("bucket"))
+          await new Promise((r) => setTimeout(r, 300));
+        return HttpResponse.json(
+          new URL(request.url).searchParams.get("bucket") ? [] : readingsFixture(5, NOW_MS),
+        );
+      }),
+    );
+    localStorage.setItem(REFRESH_TOKEN_KEY, VALID_REFRESH);
+    renderWithProviders(<RangeSwitcher />);
+    await screen.findByText("status:ready");
+    expect(screen.getByText("points:5")).toBeInTheDocument();
+    await userEvent.setup().click(screen.getByRole("button", { name: "range-1h" }));
+    expect(screen.getByText("status:loading")).toBeInTheDocument();
+    expect(screen.getByText("points:0")).toBeInTheDocument();
+    expect(await screen.findByText("status:ready", {}, { timeout: 2000 })).toBeInTheDocument();
   });
 
   it("reports an error when the API fails", async () => {

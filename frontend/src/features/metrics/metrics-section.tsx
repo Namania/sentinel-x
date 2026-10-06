@@ -69,7 +69,7 @@ export function MetricsSection() {
   const bucketed = bucketFor(range) !== null;
   const latest = readings.latest ?? latestFromApi;
   const previous = readings.previous;
-  const gasMax = Math.max(0, ...readings.points.map((p) => p.gas ?? 0));
+  const gasMax = Math.max(0, ...readings.points.map((p) => p.gasMax ?? 0));
 
   return (
     <section aria-labelledby="metrics-title" className="space-y-4">

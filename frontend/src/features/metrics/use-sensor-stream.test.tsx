@@ -70,6 +70,21 @@ describe("useSensorStream", () => {
     expect(times[1]! - times[0]!).toBeGreaterThanOrEqual(RECONNECT_DELAYS_MS[0] - 50);
   });
 
+  it("waits longer before each further reconnection attempt", async () => {
+    const times: number[] = [];
+    server.use(
+      sensorsLink.addEventListener("connection", ({ client }) => {
+        times.push(Date.now());
+        if (times.length < 3) client.close();
+      }),
+    );
+    renderProbe();
+    await waitFor(() => expect(times).toHaveLength(3), { timeout: 6000 });
+    const [first, second] = [times[1]! - times[0]!, times[2]! - times[1]!];
+    expect(first).toBeGreaterThanOrEqual(RECONNECT_DELAYS_MS[0] - 50);
+    expect(second).toBeGreaterThanOrEqual(RECONNECT_DELAYS_MS[1] - 50);
+  }, 8000);
+
   it("closes the socket on unmount and stops reconnecting", async () => {
     let connections = 0;
     server.use(sensorsLink.addEventListener("connection", () => void connections++));
