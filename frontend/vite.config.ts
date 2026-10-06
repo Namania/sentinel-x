@@ -28,6 +28,11 @@ export default defineConfig({
         codeSplitting: {
           groups: [
             {
+              // Charting stack: loaded only by the dashboard, changes rarely.
+              name: "charts",
+              test: /node_modules[\\/](recharts|d3-[^\\/]+|@reduxjs|react-redux|immer|reselect|es-toolkit|eventemitter3|internmap|victory-vector-icon|decimal\.js-light|fast-equals|tiny-invariant|use-sync-external-store|react-smooth|react-transition-group|dom-helpers|@babel\/runtime)[\\/]/,
+            },
+            {
               name: "vendor",
               test: /node_modules[\\/](react|react-dom|scheduler|react-router)[\\/]/,
             },

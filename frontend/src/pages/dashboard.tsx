@@ -1,4 +1,5 @@
 import { AccountCard, ApiCard, CameraCard } from "@/features/dashboard/status-cards";
+import { MetricsSection } from "@/features/metrics/metrics-section";
 import { useDocumentTitle } from "@/lib/use-document-title";
 
 export function DashboardPage() {
@@ -11,6 +12,7 @@ export function DashboardPage() {
         <ApiCard />
         <AccountCard />
       </div>
+      <MetricsSection />
     </section>
   );
 }
