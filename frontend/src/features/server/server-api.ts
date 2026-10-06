@@ -63,3 +63,8 @@ export function formatUptime(seconds: number): string {
   if (minutes > 0) return `${minutes} min`;
   return "< 1 min";
 }
+
+/** "Charge 0,42 · 0,38 · 0,31" as one text node so tests and screen readers get one phrase. */
+export function loadLabel(h: ServerHealth): string {
+  return `Charge ${formatNumber(h.load_1, 2)} · ${formatNumber(h.load_5, 2)} · ${formatNumber(h.load_15, 2)}`;
+}
