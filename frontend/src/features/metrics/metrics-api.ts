@@ -115,6 +115,11 @@ function mean(current: number | null, incoming: number | null): number | null {
  * Add a live reading to the series: as a new point when raw, folded into the current bucket
  * when aggregated (running mean, alert sticky). Points older than the range are dropped.
  */
+function maxOf(...values: (number | null)[]): number | null {
+  const known = values.filter((v): v is number => v !== null);
+  return known.length ? Math.max(...known) : null;
+}
+
 export function appendLive(
   points: MetricPoint[],
   reading: Reading,
@@ -131,10 +136,7 @@ export function appendLive(
       temperature: mean(last.temperature, point.temperature),
       humidity: mean(last.humidity, point.humidity),
       gas: mean(last.gas, point.gas),
-      gasMax:
-        Math.max(last.gasMax ?? -Infinity, point.gasMax ?? -Infinity) === -Infinity
-          ? null
-          : Math.max(last.gasMax ?? -Infinity, point.gasMax ?? -Infinity),
+      gasMax: maxOf(last.gasMax, point.gasMax),
       gasAlert: last.gasAlert || point.gasAlert,
     };
     return [...kept.slice(0, -1), merged];

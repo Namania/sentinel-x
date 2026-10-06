@@ -102,6 +102,7 @@ describe("metrics api helpers", () => {
       temperature: 20,
       humidity: 40,
       gas: 400,
+      gasMax: 400,
       gasAlert: false,
     };
     const points = appendLive(
@@ -111,7 +112,8 @@ describe("metrics api helpers", () => {
       60_000,
     );
     expect(points).toHaveLength(1);
-    expect(points[0]).toMatchObject({ time: NOW - 30_000, gasMax: null, gasAlert: true });
+    expect(points[0]).toMatchObject({ time: NOW - 30_000, gasMax: 410, gasAlert: true });
     expect(points[0]!.temperature).toBeCloseTo(21.25);
+    expect(points[0]!.gas).toBeCloseTo(405);
   });
 });
