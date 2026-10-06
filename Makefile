@@ -9,7 +9,7 @@ COMPOSE_DEV  := $(COMPOSE) -f compose.yml -f compose.dev.yml
 .PHONY: dev deploy down logs
 
 dev:
-	$(COMPOSE_DEV) up --build
+	$(COMPOSE_DEV) up --build --renew-anon-volumes
 
 deploy:
 	git pull --ff-only

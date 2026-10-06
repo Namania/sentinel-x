@@ -18,6 +18,7 @@ Le seul fichier de configuration est `backend/.env` (copié de `backend/.env.exa
 - API via nginx : `http://<hôte>:8080/api/...` (par exemple `/api/health`)
 - Swagger : `http://<hôte>:8080/api/docs` (en local sans nginx : `http://localhost:8000/docs`)
 - WebSocket : `ws://<hôte>:8080/ws?token=<access_token>`
+- Mesures : section « Mesures » du Dashboard (temps réel via le WebSocket)
 - Flux caméra : `http://<hôte>:8080/api/camera/stream?token=<access_token>` (MJPEG, utilisable dans une balise `<img>` ; l'en-tête `Authorization: Bearer` fonctionne aussi)
 - État caméra : `GET /api/camera/status` → `{"configured": true, "viewers": 1}` (même authentification)
 
@@ -50,6 +51,24 @@ uv run uvicorn --factory app.presentation.main:create_app --reload   # serveur l
 ```
 
 Les tests d'intégration utilisent la base `sentinel_test` créée par `.docker/postgres/init-test-db.sql`. Les identifiants viennent de `backend/.env` ; `TEST_POSTGRES_HOST`, `TEST_POSTGRES_PORT` et `TEST_POSTGRES_DB` permettent optionnellement de surcharger la cible des tests.
+
+## Capteurs
+
+Les ESP32 envoient leurs mesures en HTTP (MQTT viendra plus tard) :
+
+```sh
+curl -X POST http://<hôte>:8080/api/sensors/readings \
+  -H "X-Device-Key: $DEVICE_API_KEY" -H "Content-Type: application/json" \
+  -d '{"device_id":"esp-interieur","gaz":{"mostGaz":false,"quantity":412},"temperature":{"humidity":48.5,"temp":22.9}}'
+```
+
+`DEVICE_API_KEY` (16 caractères minimum) se règle dans `backend/.env`. Chaque mesure est stockée
+puis diffusée sur le WebSocket (`{"type":"sensor.reading","data":{…}}`). Historique :
+`GET /api/sensors/readings?device_id=…&from=…&to=…&bucket=1m|5m|15m|1h`, dernière mesure par
+appareil : `GET /api/sensors/latest`, appareils : `GET /api/sensors/devices`.
+
+Sans matériel : `cd backend && uv run simulate-sensors` envoie des mesures factices toutes les 2 s
+(`--base-url`, `--device`, `--interval`, `--count`). Les graphiques sont dans le Dashboard.
 
 ## Front
 

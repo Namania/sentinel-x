@@ -1,7 +1,7 @@
 # Mesures capteurs (température, humidité, gaz) — design
 
 Date : 2026-10-06
-Statut : en attente de relecture
+Statut : implémenté le 2026-10-06
 
 ## Objectif
 
