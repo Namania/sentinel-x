@@ -98,6 +98,7 @@ class InMemorySensorReadingRepository(SensorReadingRepository):
 class InMemoryAlertRepository(AlertRepository):
     def __init__(self) -> None:
         self.alerts: list[Alert] = []
+        self.lookups = 0  # open_for / open_for_device calls, to keep the use case to one query
 
     async def add(self, alert: Alert) -> None:
         self.alerts.append(alert)
@@ -105,7 +106,12 @@ class InMemoryAlertRepository(AlertRepository):
     async def save(self, alert: Alert) -> None:
         self.alerts = [alert if a.id == alert.id else a for a in self.alerts]
 
+    async def open_for_device(self, device_id: str) -> dict[Metric, Alert]:
+        self.lookups += 1
+        return {a.metric: a for a in self.alerts if a.device_id == device_id and a.is_open}
+
     async def open_for(self, device_id: str, metric: Metric) -> Alert | None:
+        self.lookups += 1
         return next(
             (
                 a

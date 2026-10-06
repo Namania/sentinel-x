@@ -60,6 +60,10 @@ class AlertRepository(ABC):
     async def open_for(self, device_id: str, metric: Metric) -> Alert | None: ...
 
     @abstractmethod
+    async def open_for_device(self, device_id: str) -> dict[Metric, Alert]:
+        """Every open alert of one device, keyed by metric (one query per reading)."""
+
+    @abstractmethod
     async def list(self, status: AlertStatus, device_id: str | None, limit: int) -> list[Alert]:
         """Open alerts first, then by opened_at descending; at most `limit`."""
 

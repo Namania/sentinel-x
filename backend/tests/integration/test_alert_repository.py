@@ -92,3 +92,12 @@ async def test_only_one_open_alert_per_device_and_metric(uow):
         await tx.alerts.save(current.resolve(at=T0, value=29.0))
         await tx.alerts.add(alert(minutes=2))
         await tx.commit()
+
+
+async def test_open_for_device_returns_the_open_alerts_by_metric(uow):
+    temp, gas = alert(), alert(metric="gas")
+    await seed(uow, [alert(resolved=True, minutes=-60), temp, gas, alert(device="esp-exterieur")])
+    async with uow as tx:
+        found = await tx.alerts.open_for_device("esp-interieur")
+        assert found == {"temperature": temp, "gas": gas}
+        assert await tx.alerts.open_for_device("esp-nowhere") == {}

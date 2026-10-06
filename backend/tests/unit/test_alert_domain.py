@@ -67,8 +67,12 @@ def test_gas_alert_by_bound():
     t = Thresholds(temperature=(10.0, 30.0), humidity=(20.0, 70.0), gas_max=1500)
     assert violations(reading(gas=1600), t)["gas"] == Violation("gas", "high", 1500.0, 1600.0)
     assert violations(reading(gas=1500), t)["gas"] is None
-    assert violations(reading(gas=None, flag=True), t)["gas"] == Violation(
-        "gas", "high", 1500.0, 0.0
+    # The device flag alone says nothing about the bound: threshold 0 means « alerte ESP ».
+    assert violations(reading(gas=None, flag=True), t)["gas"] == Violation("gas", "high", 0.0, 0.0)
+    assert violations(reading(gas=800, flag=True), t)["gas"] == Violation("gas", "high", 0.0, 800.0)
+    # Flag and level over the bound: the bound is the honest threshold.
+    assert violations(reading(gas=1600, flag=True), t)["gas"] == Violation(
+        "gas", "high", 1500.0, 1600.0
     )
 
 

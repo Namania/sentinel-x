@@ -150,3 +150,33 @@ async def test_custom_thresholds_are_honoured():
         make_input(temperature_c=26.0)
     )
     assert len(events_of(bus, "alert.opened")) == 1
+
+
+async def test_a_flip_to_the_other_bound_resolves_and_reopens_in_one_reading():
+    uow, bus = InMemoryUnitOfWork(), RecordingBroadcaster()
+    use_case = RecordReading(uow, bus, clock=lambda: NOW)
+    await use_case.execute(make_input(humidity_pct=12.0))
+    later = NOW + timedelta(minutes=1)
+    await use_case.execute(make_input(humidity_pct=75.0, recorded_at=later))
+    kinds = [e["type"] for e in bus.events]
+    assert kinds == [
+        "sensor.reading",
+        "alert.opened",
+        "sensor.reading",
+        "alert.resolved",
+        "alert.opened",
+    ]
+    low, high = uow.alerts.alerts
+    assert (low.direction, low.is_open, low.resolved_value) == ("low", False, 75.0)
+    assert (high.direction, high.is_open, high.threshold, high.opened_at) == (
+        "high",
+        True,
+        70.0,
+        later,
+    )
+
+
+async def test_one_repository_lookup_per_reading():
+    uow, bus = InMemoryUnitOfWork(), RecordingBroadcaster()
+    await RecordReading(uow, bus, clock=lambda: NOW).execute(make_input())
+    assert uow.alerts.lookups == 1

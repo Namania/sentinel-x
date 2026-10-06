@@ -105,10 +105,15 @@ def _bounded(metric: Metric, value: float | None, bounds: tuple[float, float]) -
 
 def _gas(reading: SensorReading, t: Thresholds) -> Violation | None:
     level = float(reading.gas_level) if reading.gas_level is not None else 0.0
-    if reading.gas_alert:
-        return Violation("gas", "high", float(t.gas_max or 0), level)
-    if t.gas_max is not None and reading.gas_level is not None and reading.gas_level > t.gas_max:
+    over_bound = (
+        t.gas_max is not None and reading.gas_level is not None and reading.gas_level > t.gas_max
+    )
+    if over_bound:
+        assert t.gas_max is not None
         return Violation("gas", "high", float(t.gas_max), level)
+    if reading.gas_alert:
+        # The device's own flag: no bound to compare with, threshold 0 reads as « alerte ESP ».
+        return Violation("gas", "high", 0.0, level)
     return None
 
 

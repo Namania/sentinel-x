@@ -1,3 +1,4 @@
+from dataclasses import asdict
 from datetime import datetime
 from typing import Annotated
 from uuid import UUID
@@ -27,7 +28,7 @@ class AlertResponse(BaseModel):
 
     @classmethod
     def from_entity(cls, alert: Alert) -> "AlertResponse":
-        return cls(**AlertOutput.from_entity(alert).to_event())
+        return cls(**asdict(AlertOutput.from_entity(alert)))
 
 
 class AlertSummary(BaseModel):

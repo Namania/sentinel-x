@@ -100,3 +100,26 @@ def test_run_with_spike_posts_five_normal_six_hot_five_normal_then_stops():
     temps = [b["temperature"]["temp"] for b in bodies]
     assert all(t == 33.0 for t in temps[5:11])
     assert all(t < 33.0 for t in temps[:5] + temps[11:])
+
+
+def test_gas_spike_keeps_the_flag_down_outside_the_burst_and_logs_the_gas():
+    bodies: list[dict] = []
+    lines: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        bodies.append(json.loads(request.content))
+        return httpx.Response(201, json={"ok": True})
+
+    run(
+        base_url="http://api.test",
+        device_key="k" * 16,
+        device_id="esp-interieur",
+        interval=0,
+        count=None,
+        transport=httpx.MockTransport(handler),
+        log=lines.append,
+        spike="gas",
+    )
+    flags = [b["gaz"]["mostGaz"] for b in bodies]
+    assert flags == [False] * 5 + [True] * 6 + [False] * 5
+    assert all("mV" in line for line in lines)

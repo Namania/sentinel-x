@@ -75,9 +75,20 @@ class RecordReading:
         """Open, worsen or resolve one alert per metric; returns the events to publish."""
         events: list[tuple[str, Alert]] = []
         found = violations(reading, self._thresholds)
+        open_alerts = await uow.alerts.open_for_device(reading.device_id)
         for metric in METRICS:
             violation = found[metric]
-            current = await uow.alerts.open_for(reading.device_id, metric)
+            current = open_alerts.get(metric)
+            if (
+                violation is not None
+                and current is not None
+                and violation.direction != current.direction
+            ):
+                # Swung from one bound to the other between two readings: close, then reopen.
+                resolved = current.resolve(at=reading.recorded_at, value=violation.value)
+                await uow.alerts.save(resolved)
+                events.append(("alert.resolved", resolved))
+                current = None
             if violation is not None and current is None:
                 opened = Alert.open(
                     device_id=reading.device_id,

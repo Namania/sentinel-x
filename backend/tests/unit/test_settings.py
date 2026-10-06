@@ -98,3 +98,8 @@ def test_alert_thresholds_from_env_and_inverted_bounds_rejected(monkeypatch):
     monkeypatch.setenv("ALERT_HUMIDITY_MIN_PCT", "80")
     with pytest.raises(ValidationError):
         Settings(_env_file=None, jwt_secret="x" * 32)
+
+
+def test_empty_alert_gas_max_means_disabled(monkeypatch):
+    monkeypatch.setenv("ALERT_GAS_MAX_MV", "")
+    assert Settings(_env_file=None, jwt_secret="x" * 32).thresholds().gas_max is None

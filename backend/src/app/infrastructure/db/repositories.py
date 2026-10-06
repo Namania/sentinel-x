@@ -218,6 +218,12 @@ class SqlAlchemyAlertRepository(AlertRepository):
         row = (await self._session.scalars(stmt)).first()
         return _alert_to_entity(row) if row else None
 
+    async def open_for_device(self, device_id: str) -> dict[Metric, Alert]:
+        m = AlertModel
+        stmt = select(m).where(m.device_id == device_id, m.resolved_at.is_(None))
+        rows = (await self._session.scalars(stmt)).all()
+        return {cast(Metric, r.metric): _alert_to_entity(r) for r in rows}
+
     async def list(self, status: AlertStatus, device_id: str | None, limit: int) -> list[Alert]:
         m = AlertModel
         stmt = select(m)

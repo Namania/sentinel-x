@@ -41,7 +41,9 @@ class SensorWalk:
     def _step(self, value: float, step: float, low: float, high: float) -> float:
         return min(high, max(low, value + self._rng.uniform(-step, step)))
 
-    def next_payload(self, device_id: str, spike: str | None = None) -> dict[str, Any]:
+    def next_payload(
+        self, device_id: str, spike: str | None = None, calm_gas: bool = False
+    ) -> dict[str, Any]:
         self.temperature = self._step(self.temperature, 0.3, 15.0, 35.0)
         self.humidity = self._step(self.humidity, 1.0, 20.0, 90.0)
         if self._rng.random() < 0.02:  # a spike that takes a few readings to decay
@@ -64,6 +66,9 @@ class SensorWalk:
             payload["temperature"]["humidity"] = 78.0
         elif spike == "gas":
             payload["gaz"] = {"mostGaz": True, "quantity": max(quantity, 1600)}
+        elif calm_gas:
+            # Around a gas burst the walk's own random spikes would blur what the alert shows.
+            payload["gaz"] = {"mostGaz": False, "quantity": min(quantity, 1000)}
         return payload
 
 
@@ -104,13 +109,20 @@ def run(
             # 5 normal readings, 6 out of bounds, 5 normal: one alert opens, then resolves.
             for i in range(16):
                 burst = 5 <= i < 11
-                payload = walk.next_payload(device_id, spike if burst else None)
+                payload = walk.next_payload(
+                    device_id, spike if burst else None, calm_gas=spike == "gas" and not burst
+                )
                 response = client.post("/sensors/readings", json=payload, headers=headers)
                 if response.status_code != 201:
                     log(f"refusé ({response.status_code}) : {response.text}")
                     return sent
                 sent += 1
-                log(f"{device_id}: {'HORS BORNES' if burst else 'normal'} {payload['temperature']}")
+                log(
+                    f"{device_id}: {'HORS BORNES' if burst else 'normal'} "
+                    f"{payload['temperature']['temp']} °C, {payload['temperature']['humidity']} %, "
+                    f"{payload['gaz']['quantity']} mV"
+                    + (" ALERTE" if payload["gaz"]["mostGaz"] else "")
+                )
                 if i < 15:
                     time.sleep(interval)
             return sent
