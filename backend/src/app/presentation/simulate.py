@@ -115,7 +115,7 @@ def main(argv: list[str] | None = None) -> int:
         "--backfill-minutes",
         type=int,
         default=None,
-        help="remplit l'historique : une mesure par minute sur les N dernières minutes, puis quitte",
+        help="remplit l'historique (une mesure par minute sur N minutes) puis quitte",
     )
     args = parser.parse_args(argv)
     key = Settings().device_api_key
