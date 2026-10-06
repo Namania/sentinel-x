@@ -29,7 +29,6 @@ services:
     restart: unless-stopped
 
   web:
-    # The front is built into this image (frontend/Dockerfile); nginx config is baked in too.
     build:
       context: .
       dockerfile: frontend/Dockerfile
@@ -46,7 +45,7 @@ services:
     ports:
       - "1883:1883"
     volumes:
-      - ./.docker/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./.docker/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
       - mosquitto_data:/mosquitto/data
       - mosquitto_log:/mosquitto/log
 
