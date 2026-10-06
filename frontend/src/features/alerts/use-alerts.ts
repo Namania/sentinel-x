@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/features/auth/use-auth";
 import { useEventStream } from "@/features/realtime/use-event-stream";
+import { useResyncKey } from "@/features/realtime/use-resync-key";
 import { alertsPath, isOpen, sortAlerts, upsert, type Alert } from "./alerts-api";
 
 type Status = "loading" | "ready" | "error";
@@ -15,6 +16,29 @@ export function useAlerts(enabled = true) {
   const loaded = useRef(false);
   // Set when the list request failed; the first live event then rebuilds the state.
   const failed = useRef(false);
+
+  const onEvent = useCallback((type: string, data: unknown) => {
+    if ((type !== "alert.opened" && type !== "alert.resolved") || !data) return;
+    const alert = data as Alert;
+    if (!loaded.current && !failed.current) {
+      pending.current = upsert(pending.current, alert);
+      return;
+    }
+    if (failed.current) {
+      // The list request failed: live events are enough to carry on with what we have.
+      failed.current = false;
+      loaded.current = true;
+      const seeded = upsert(pending.current, alert);
+      pending.current = [];
+      setAlerts((current) => seeded.reduce((acc, a) => upsert(acc, a), current));
+      setStatus("ready");
+      return;
+    }
+    setAlerts((current) => upsert(current, alert));
+  }, []);
+  const { connected } = useEventStream(enabled, onEvent);
+  // Events emitted while the socket was down are lost: reload the list after each reconnect.
+  const resyncKey = useResyncKey(connected);
 
   useEffect(() => {
     let cancelled = false;
@@ -32,32 +56,13 @@ export function useAlerts(enabled = true) {
       .catch(() => {
         if (cancelled) return;
         failed.current = true;
-        setStatus("error");
+        // A failed resync keeps the data we already show; a failed first load reports it.
+        setStatus((current) => (current === "ready" ? current : "error"));
       });
     return () => {
       cancelled = true;
     };
-  }, [authFetch]);
-
-  const onEvent = useCallback((type: string, data: unknown) => {
-    if ((type !== "alert.opened" && type !== "alert.resolved") || !data) return;
-    const alert = data as Alert;
-    if (!loaded.current && !failed.current) {
-      pending.current = upsert(pending.current, alert);
-      return;
-    }
-    if (failed.current) {
-      failed.current = false;
-      loaded.current = true;
-      const seeded = upsert(pending.current, alert);
-      pending.current = [];
-      setAlerts(seeded);
-      setStatus("ready");
-      return;
-    }
-    setAlerts((current) => upsert(current, alert));
-  }, []);
-  const { connected } = useEventStream(enabled, onEvent);
+  }, [authFetch, resyncKey]);
 
   return { status, alerts, open: alerts.filter(isOpen), connected };
 }

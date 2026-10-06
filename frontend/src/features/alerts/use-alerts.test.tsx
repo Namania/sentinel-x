@@ -82,4 +82,27 @@ describe("useAlerts / useAlertCount", () => {
     expect(await screen.findByText("status:ready")).toBeInTheDocument();
     expect(screen.getByText("ids:late")).toBeInTheDocument();
   });
+
+  it("reloads the list and the count after the socket reconnects", async () => {
+    let connections = 0;
+    server.use(
+      sensorsLink.addEventListener("connection", ({ client }) => {
+        connections += 1;
+        // Both hooks open a socket; the first round drops shortly after opening, and the
+        // events emitted meanwhile are lost by design.
+        if (connections <= 2) setTimeout(() => client.close(), 50);
+      }),
+    );
+    renderProbe();
+    await screen.findByText("status:ready");
+    await screen.findByText("count:0");
+    // What the API knows by the time the client comes back (1 s later).
+    server.use(
+      http.get("/api/alerts", () => HttpResponse.json([makeAlert({ id: "missed" })])),
+      http.get("/api/alerts/summary", () => HttpResponse.json({ open: 1 })),
+    );
+    expect(await screen.findByText("ids:missed", {}, { timeout: 4000 })).toBeInTheDocument();
+    expect(await screen.findByText("count:1")).toBeInTheDocument();
+    expect(screen.getByText("status:ready")).toBeInTheDocument();
+  }, 8000);
 });
