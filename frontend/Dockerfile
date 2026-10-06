@@ -1,5 +1,7 @@
 FROM node:24-alpine AS deps
-RUN corepack enable
+# npm's downloader retries on slow links (corepack gave up on the Raspberry Pi); keep the
+# version in sync with "packageManager" in frontend/package.json.
+RUN npm install -g pnpm@12.4.2
 WORKDIR /app
 COPY frontend/package.json frontend/pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile

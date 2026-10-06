@@ -197,7 +197,7 @@ le flux MJPEG fonctionne en dev. Sans CORS à configurer, en dev comme en prod (
 
 ```
 FROM node:24-alpine AS build
-RUN corepack enable
+RUN npm install -g pnpm@12.4.2
 WORKDIR /app
 COPY frontend/package.json frontend/pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
