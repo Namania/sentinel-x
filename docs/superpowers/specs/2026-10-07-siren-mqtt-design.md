@@ -26,7 +26,7 @@ l'équipe pour la partie ESP.
 - **Topic** : `sentinel/cmd/buzzer` — trois segments, donc **hors** du joker `sentinel/+` que l'API
   écoute pour les mesures : l'API ne lira jamais ses propres commandes comme des mesures.
 - **QoS 1, message retenu** : le broker garde le dernier état, tout abonné le reçoit à la connexion.
-- **Payload** JSON :
+- **Payload** JSON **compact** (sans espaces, `on` en premier ; présenté aéré ci-dessous) :
 
 ```json
 {"on": true,  "reason": "gas",  "open": 2, "muted_until": null,                   "at": "2026-10-07T09:12:03Z"}
@@ -58,9 +58,13 @@ PubSubClient mqtt(wifi);
 bool sirene = false;
 
 void onMessage(char* topic, byte* payload, unsigned int len) {
-  // Le JSON tient dans 200 octets ; "on":true suffit à décider, pas besoin de parseur complet.
-  payload[len] = '\0';
-  sirene = strstr((char*)payload, "\"on\":true") != nullptr;
+  // Copie locale terminée par \0 : le tampon de PubSubClient n'a pas de place pour ce \0.
+  char buf[256];
+  size_t n = len < sizeof buf - 1 ? len : sizeof buf - 1;
+  memcpy(buf, payload, n);
+  buf[n] = '\0';
+  // L'API publie du JSON compact : {"on":true,...}. On tolère aussi un espace après le deux-points.
+  sirene = strstr(buf, "\"on\":true") != nullptr || strstr(buf, "\"on\": true") != nullptr;
 }
 
 void mqttLoop() {

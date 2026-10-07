@@ -199,3 +199,17 @@ async def test_on_alerts_changed_fires_only_when_an_alert_opens_or_closes():
     assert calls == 1
     await use_case.execute(make_input(temperature_c=29.0))  # resolves
     assert calls == 2
+
+
+async def test_a_failing_on_alerts_changed_is_logged_not_raised(caplog):
+    uow, bus = InMemoryUnitOfWork(), RecordingBroadcaster()
+
+    async def boom() -> None:
+        raise ConnectionError("siren away")
+
+    output = await RecordReading(uow, bus, clock=lambda: NOW, on_alerts_changed=boom).execute(
+        make_input(temperature_c=30.4)
+    )
+    assert output.temperature_c == 30.4
+    assert uow.committed
+    assert "siren away" in caplog.text

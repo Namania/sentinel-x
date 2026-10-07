@@ -60,6 +60,10 @@ class Siren:
         self._state = SirenState(on=False, reason=None, open=0, muted_until=None)
         self._muted_until: datetime | None = None
         self._announced = False
+        # The last state the broker acknowledged; None until a publish succeeds, so a transition
+        # that failed to publish is retried at the next refresh even if nothing changed.
+        self._published: SirenState | None = None
+        self._lock = asyncio.Lock()
         self._wake_up: asyncio.Task[None] | None = None
 
     @property
@@ -67,21 +71,18 @@ class Siren:
         return self._state
 
     async def refresh(self) -> SirenState:
-        """Re-read the open alerts, publish and broadcast if the state changed (or at start)."""
-        now = self._clock()
-        async with self._uow_factory() as uow:
-            open_alerts = await uow.alerts.list("open", None, 500)
-        new = decide(open_alerts, self._triggers, self._muted_until, now)
-        changed = (
-            not self._announced
-            or new.on != self._state.on
-            or new.reason != self._state.reason
-            or new.muted_until != self._state.muted_until
-        )
-        self._state = new
-        if changed:
-            await self._announce(new, now)
-        return new
+        """Re-read the open alerts; publish and broadcast when the state changed, at start, or
+        when the broker still lacks the current state. Serialised: concurrent callers (ingestion,
+        the route, the wake-up) must not publish an older state after a newer one."""
+        async with self._lock:
+            now = self._clock()
+            async with self._uow_factory() as uow:
+                open_alerts = await uow.alerts.list("open", None, 500)
+            new = decide(open_alerts, self._triggers, self._muted_until, now)
+            self._state = new
+            if not self._announced or new != self._published:
+                await self._announce(new, now)
+            return new
 
     async def mute(self, by: UUID) -> SirenState:
         self._muted_until = self._clock() + self._mute
@@ -103,8 +104,11 @@ class Siren:
         if self._publisher is not None:
             try:
                 await self._publisher.publish(state, at)
-            except Exception:  # noqa: BLE001 - the state is still served; the next change retries
+                self._published = state
+            except Exception:  # noqa: BLE001 - the state is still served; the next refresh retries
                 logger.exception("siren: publishing the buzzer state failed")
+        else:
+            self._published = state
         await self._broadcaster.broadcast({"type": EVENT_TYPE, "data": siren_to_dict(state, at)})
 
     def _schedule_wake_up(self, seconds: float) -> None:
@@ -112,11 +116,18 @@ class Siren:
 
         async def wake_up() -> None:
             await self._sleep(seconds)
-            await self.refresh()  # the mute has expired: the siren comes back if needed
+            try:
+                await self.refresh()  # the mute has expired: the siren comes back if needed
+            except Exception:  # noqa: BLE001 - try again shortly rather than stay silent for good
+                logger.exception("siren: wake-up refresh failed")
+            if self._state.muted_until is not None:
+                # Still muted (clock stepped back, or the refresh failed): come back later.
+                remaining = (self._state.muted_until - self._clock()).total_seconds()
+                self._schedule_wake_up(max(1.0, remaining))
 
         self._wake_up = asyncio.create_task(wake_up(), name="siren-wake-up")
 
     def _cancel_wake_up(self) -> None:
-        if self._wake_up is not None:
-            self._wake_up.cancel()
-            self._wake_up = None
+        task, self._wake_up = self._wake_up, None
+        if task is not None and task is not asyncio.current_task():
+            task.cancel()

@@ -12,6 +12,8 @@ export function useSiren() {
   const [status, setStatus] = useState<Status>("loading");
   const [state, setState] = useState<SirenState | null>(null);
   const [pending, setPending] = useState(false);
+  // Last failed action, for the person standing next to the buzzer; cleared on the next try.
+  const [error, setError] = useState<string | null>(null);
   const loaded = useRef(false);
 
   const onEvent = useCallback((type: string, data: unknown) => {
@@ -44,12 +46,14 @@ export function useSiren() {
   const call = useCallback(
     async (method: "POST" | "DELETE") => {
       setPending(true);
+      setError(null);
       try {
         const fresh = await authFetch<SirenState>(SIREN_MUTE_PATH, { method });
         setState(fresh);
         setStatus("ready");
       } catch {
-        // The bar keeps the previous state; the next event will say what happened.
+        // The bar keeps the previous state and says so; the next event will settle it.
+        setError("Échec, réessayez");
       } finally {
         setPending(false);
       }
@@ -59,5 +63,5 @@ export function useSiren() {
   const mute = useCallback(() => call("POST"), [call]);
   const unmute = useCallback(() => call("DELETE"), [call]);
 
-  return { status, state, connected, pending, mute, unmute };
+  return { status, state, connected, pending, error, mute, unmute };
 }

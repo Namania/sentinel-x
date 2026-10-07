@@ -11,7 +11,8 @@ import aiomqtt
 def connect_factory(host: str, port: int, identifier: str = "sentinel-x-api"):
     @asynccontextmanager
     async def connect() -> AsyncIterator[aiomqtt.Client]:
-        async with aiomqtt.Client(host, port, identifier=identifier) as client:
+        # A broker that accepts TCP but never answers must not stall the caller for ever.
+        async with aiomqtt.Client(host, port, identifier=identifier, timeout=5) as client:
             yield client
 
     return connect

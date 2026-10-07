@@ -52,20 +52,55 @@ def gas_alert() -> Alert:
     )
 
 
-def build(fail=False):
+class SlowAlerts:
+    """Wraps the in-memory alert repository: `list` yields for a scripted delay."""
+
+    def __init__(self, inner, delays: list[float]) -> None:
+        self._inner = inner
+        self._delays = delays
+
+    async def list(self, status, device_id, limit):
+        await asyncio.sleep(self._delays.pop(0) if self._delays else 0)
+        return await self._inner.list(status, device_id, limit)
+
+    def __getattr__(self, name):
+        return getattr(self._inner, name)
+
+
+class FailingOnce:
+    """A unit-of-work factory that raises on the next use when `fail_next` is set."""
+
+    def __init__(self, uow) -> None:
+        self.uow = uow
+        self.fail_next = False
+
+    def __call__(self):
+        if self.fail_next:
+            self.fail_next = False
+            raise ConnectionError("database away")
+        return self.uow
+
+
+def build(fail=False, delays: list[float] | None = None):
     uow = InMemoryUnitOfWork()
+    if delays is not None:
+        uow.alerts = SlowAlerts(uow.alerts, delays)
+    factory = FailingOnce(uow)
     publisher = RecordingPublisher(fail)
     bus = RecordingBroadcaster()
     clock = Clock()
     sleeps: list[float] = []
-    wake = asyncio.Event()
+    wakes: list[asyncio.Future[None]] = []  # one per sleep; the test resolves the one it wants
 
     async def sleep(seconds: float) -> None:
         sleeps.append(seconds)
-        await wake.wait()
+        future: asyncio.Future[None] = asyncio.get_running_loop().create_future()
+        wakes.append(future)
+        await future
 
-    siren = Siren(lambda: uow, publisher, bus, TRIGGERS, mute_minutes=15, clock=clock, sleep=sleep)
-    return siren, uow, publisher, bus, clock, sleeps, wake
+    siren = Siren(factory, publisher, bus, TRIGGERS, mute_minutes=15, clock=clock, sleep=sleep)
+    siren.factory = factory  # type: ignore[attr-defined] - test hook
+    return siren, uow, publisher, bus, clock, sleeps, wakes
 
 
 async def test_the_first_refresh_publishes_even_when_silent():
@@ -93,7 +128,7 @@ async def test_refresh_publishes_only_on_change():
 
 
 async def test_mute_silences_and_schedules_the_wake_up():
-    siren, uow, publisher, _, clock, sleeps, wake = build()
+    siren, uow, publisher, _, clock, sleeps, wakes = build()
     await uow.alerts.add(gas_alert())
     await siren.refresh()
     state = await siren.mute(by=uuid4())
@@ -104,7 +139,7 @@ async def test_mute_silences_and_schedules_the_wake_up():
     assert sleeps == [15 * 60]
     # The mute expires: the siren comes back on its own because the alert is still open.
     clock.now = NOW + timedelta(minutes=15, seconds=1)
-    wake.set()
+    wakes[0].set_result(None)
     await asyncio.sleep(0.01)
     assert publisher.published[-1][0].on is True
     assert siren.state.muted_until is None
@@ -142,3 +177,47 @@ async def test_a_failing_publisher_does_not_break_refresh(caplog):
     assert state.on is True
     assert bus.events[-1]["type"] == "siren.state"
     assert "broker down" in caplog.text
+
+
+async def test_a_failed_publish_is_retried_at_the_next_refresh_even_without_change(caplog):
+    siren, uow, publisher, _, _, _, _ = build(fail=True)
+    await uow.alerts.add(gas_alert())
+    await siren.refresh()
+    assert publisher.published == []
+    publisher.fail = False
+    await siren.refresh()  # nothing changed, but the broker never got the `on`
+    assert [s.on for s, _ in publisher.published] == [True]
+    await siren.refresh()
+    assert len(publisher.published) == 1
+
+
+async def test_the_wake_up_survives_a_failing_refresh_and_tries_again(caplog):
+    siren, uow, publisher, _, clock, sleeps, wakes = build()
+    await uow.alerts.add(gas_alert())
+    await siren.refresh()
+    await siren.mute(by=uuid4())
+    await asyncio.sleep(0)
+    siren.factory.fail_next = True  # the database is away when the mute expires
+    clock.now = NOW + timedelta(minutes=15, seconds=1)
+    wakes[0].set_result(None)
+    await asyncio.sleep(0.01)
+    assert "database away" in caplog.text
+    assert publisher.published[-1][0].on is False  # not back yet
+    assert sleeps == [15 * 60, 1.0]  # rescheduled, soon
+    wakes[1].set_result(None)
+    await asyncio.sleep(0.01)
+    assert publisher.published[-1][0].on is True
+    assert siren.state.muted_until is None
+
+
+async def test_concurrent_refreshes_publish_the_newest_state_last():
+    # The first refresh reads before the alert lands but finishes after the second one.
+    siren, uow, publisher, _, _, _, _ = build(delays=[0.03, 0.005])
+    await siren.refresh()
+    first = asyncio.create_task(siren.refresh())
+    await asyncio.sleep(0.001)
+    await uow.alerts.add(gas_alert())
+    second = asyncio.create_task(siren.refresh())
+    await asyncio.gather(first, second)
+    assert siren.state.on is True
+    assert publisher.published[-1][0].on is True

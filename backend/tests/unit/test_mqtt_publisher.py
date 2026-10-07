@@ -30,6 +30,8 @@ async def test_publishes_the_retained_state_on_the_topic():
     assert opened == 1
     call = client.calls[0]
     assert (call["topic"], call["qos"], call["retain"]) == ("sentinel/cmd/buzzer", 1, True)
+    # The firmware matches the raw bytes: compact JSON, `on` first, no spaces.
+    assert call["payload"].startswith('{"on":true,')
     body = json.loads(call["payload"])
     assert list(body)[0] == "on"
     assert body == {

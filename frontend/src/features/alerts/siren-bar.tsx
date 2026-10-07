@@ -6,7 +6,7 @@ import { useSiren } from "./use-siren";
 
 /** The ESP32 buzzer, as the API drives it: what it does now, and the button to mute or re-arm it. */
 export function SirenBar({ className }: { className?: string }) {
-  const { status, state, pending, mute, unmute } = useSiren();
+  const { status, state, pending, error, mute, unmute } = useSiren();
   const muted = Boolean(state?.muted_until);
   const on = Boolean(state?.on);
   const Icon = on ? BellRing : muted ? BellOff : Bell;
@@ -31,6 +31,7 @@ export function SirenBar({ className }: { className?: string }) {
         {status === "loading" && "Sirène…"}
         {status === "error" && "Sirène : état inconnu"}
         {status === "ready" && state && sirenLabel(state)}
+        {error && <span className="text-destructive ml-2 text-xs">{error}</span>}
       </span>
       {status === "ready" && on && (
         <Button size="sm" variant="outline" disabled={pending} onClick={() => void mute()}>

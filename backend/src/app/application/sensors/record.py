@@ -1,3 +1,4 @@
+import logging
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime, timedelta
 
@@ -14,6 +15,8 @@ from app.domain.alert import (
     violations,
 )
 from app.domain.sensor_reading import SensorReading, to_utc
+
+logger = logging.getLogger(__name__)
 
 # Devices have no reliable clock: timestamps outside this window are replaced by server time.
 MAX_FUTURE_DRIFT = timedelta(minutes=5)
@@ -71,7 +74,10 @@ class RecordReading:
                 {"type": kind, "data": AlertOutput.from_entity(alert).to_event()}
             )
         if alert_events and self._on_alerts_changed is not None:
-            await self._on_alerts_changed()
+            try:
+                await self._on_alerts_changed()
+            except Exception:  # noqa: BLE001 - the reading is stored; the siren catches up later
+                logger.exception("alert change hook failed")
         return output
 
     async def _apply_alerts(

@@ -29,6 +29,7 @@ class MqttSirenPublisher:
         self._topic = topic
 
     async def publish(self, state: SirenState, at: datetime) -> None:
-        payload = json.dumps(siren_to_dict(state, at))
+        # Compact: the firmware matches the raw bytes (`"on":true`), no spaces to guess.
+        payload = json.dumps(siren_to_dict(state, at), separators=(",", ":"))
         async with self._connect() as client:
             await client.publish(self._topic, payload, qos=1, retain=True)

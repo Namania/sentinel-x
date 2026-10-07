@@ -63,4 +63,20 @@ describe("SirenBar", () => {
     await user.click(await bar.findByRole("button", { name: "Réactiver" }));
     await waitFor(() => expect(bar.getByText("Sirène active : gaz")).toBeInTheDocument());
   });
+
+  it("tells the user when muting failed and lets them try again", async () => {
+    const user = userEvent.setup();
+    server.use(
+      http.get("/api/alerts/siren", () =>
+        HttpResponse.json(makeSiren({ on: true, reason: "gas", open: 1 })),
+      ),
+      http.post("/api/alerts/siren/mute", () => new HttpResponse(null, { status: 503 })),
+    );
+    renderBar();
+    const bar = within(await screen.findByRole("status", { name: "Sirène" }));
+    await user.click(await bar.findByRole("button", { name: "Couper 15 min" }));
+    expect(await bar.findByText("Échec, réessayez")).toBeInTheDocument();
+    expect(bar.getByRole("button", { name: "Couper 15 min" })).toBeEnabled();
+    expect(bar.getByText("Sirène active : gaz")).toBeInTheDocument();
+  });
 });

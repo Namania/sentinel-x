@@ -151,8 +151,9 @@ quand une alerte ouverte correspond à `BUZZER_TRIGGERS` (`gas,temperature:high`
 `metric` ou `metric:low|high`) et qu'aucune coupure n'est en cours. `GET /api/alerts/siren`,
 `POST /api/alerts/siren/mute` (coupe `BUZZER_MUTE_MINUTES`, 15 par défaut),
 `DELETE /api/alerts/siren/mute` ; événement WebSocket `siren.state`. L'ESP32 n'a qu'à s'abonner et
-lire `on` : exemple Arduino dans `docs/superpowers/specs/2026-10-07-siren-mqtt-design.md`. Test à
-la main : `docker compose exec mosquitto mosquitto_sub -t sentinel/cmd/buzzer -v`. Sans matériel : `uv run simulate-sensors --spike
+lire `on` : exemple Arduino dans `docs/superpowers/specs/2026-10-07-siren-mqtt-design.md`.
+Le payload est publié compact (`{"on":true,…}`). Test à la main :
+`docker compose exec mosquitto mosquitto_sub -t sentinel/cmd/buzzer -v`. Sans matériel : `uv run simulate-sensors --spike
 [--spike-metric temperature|humidity|gas]` envoie 5 mesures normales, 6 hors bornes, 5 normales.
 
 ## Front
