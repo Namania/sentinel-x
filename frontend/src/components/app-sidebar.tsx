@@ -45,19 +45,20 @@ function NavItem({ to, label, icon: Icon, end, badge }: NavItemProps) {
         <NavLink
           to={to}
           end={end}
-          className="relative"
+          className="relative overflow-visible"
           onClick={() => {
             // On a phone the menu is a sheet: close it once the destination is chosen.
             if (isMobile) setOpenMobile(false);
           }}
         >
           <Icon />
-          <span>{label}</span>
+          {/* The button no longer clips (the badge sits on its corner): hide the label ourselves. */}
+          <span className="group-data-[collapsible=icon]:hidden">{label}</span>
           {badge ? (
             <>
               <span
                 aria-hidden="true"
-                className="bg-destructive ml-auto min-w-4 rounded-full px-1 text-center text-[10px] leading-4 font-semibold text-white tabular-nums group-data-[collapsible=icon]:absolute group-data-[collapsible=icon]:-top-0.5 group-data-[collapsible=icon]:-right-0.5 group-data-[collapsible=icon]:ml-0"
+                className="bg-destructive ml-auto min-w-4 rounded-full px-1 text-center text-[10px] leading-4 font-semibold text-white tabular-nums group-data-[collapsible=icon]:absolute group-data-[collapsible=icon]:-top-1 group-data-[collapsible=icon]:-right-1 group-data-[collapsible=icon]:ml-0"
               >
                 {badge}
               </span>

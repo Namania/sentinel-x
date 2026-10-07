@@ -32,6 +32,8 @@ describe("AppSidebar", () => {
     const nav = await sidebar();
     expect(await nav.findByText("2 alertes ouvertes")).toBeInTheDocument();
     expect(nav.getByText("2", { selector: "[aria-hidden]" })).toBeInTheDocument();
+    // The menu button clips its content; the badge sits on the icon's corner, so it must not.
+    expect(nav.getByRole("link", { name: /^Alertes/ })).toHaveClass("overflow-visible");
   });
 
   it("starts collapsed so the wall screen keeps the room for the content", async () => {
