@@ -74,17 +74,22 @@ vidéo, l'API et la base de données.
 
 ## Les modèles sont préparés automatiquement au build
 
-Pas de commande à lancer à la main, ni sur le PC ni sur le Pi : le `backend/Dockerfile` a une
-étape `models` qui, pendant le `docker compose build` (ou `make deploy`) :
+Pas de commande à lancer à la main, ni sur le PC ni sur le Pi : pendant le
+`docker compose build` (ou `make deploy`), l'étape `models` du `backend/Dockerfile` :
 
-1. installe temporairement `ultralytics` et PyTorch (version processeur) ;
-2. convertit YOLOv8n en ONNX, en 320 pixels ;
-3. télécharge YuNet et SFace depuis le dépôt officiel d'OpenCV, en vérifiant leur empreinte
+1. copie **YOLOv8n déjà converti en ONNX**, rangé dans le dépôt (`backend/models/yolov8n.onnx`,
+   12 Mo) ;
+2. télécharge YuNet et SFace depuis le dépôt officiel d'OpenCV, en vérifiant leur empreinte
    (`--checksum`), pour être sûr d'avoir les bons fichiers.
 
-L'image finale ne garde que les 3 fichiers `.onnx` (dans `/app/models`) : PyTorch reste dans
-l'étape de build et ne part jamais dans l'image. Grâce au cache de Docker, cette étape ne se refait
-que si on la modifie.
+L'image finale contient les 3 fichiers `.onnx` dans `/app/models`. Grâce au cache de Docker, les
+téléchargements ne se refont que si on modifie ces lignes.
+
+**Pourquoi YOLO est déjà converti dans le dépôt :** la conversion en ONNX a besoin de PyTorch
+(plus d'1 Go une fois installé). Au premier essai, on la faisait pendant le build, et le Raspberry
+Pi a manqué de place sur sa carte SD. La conversion se fait donc une fois pour toutes, sur un PC,
+avec `scripts/export-yolo-onnx.sh` (dans un conteneur jetable). On ne la refait que pour changer
+de modèle ou de taille d'image, puis on commite le nouveau fichier.
 
 ## Résultat
 

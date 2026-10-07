@@ -1,18 +1,11 @@
 # syntax=docker/dockerfile:1.7
 
-# Vision models, prepared once at build time so the API never downloads anything when it starts.
+# Vision models, gathered at build time so the API never downloads anything when it starts.
 # They are ONNX files: the same files run on a PC and on the Raspberry Pi, through OpenCV alone.
-FROM python:3.12-slim AS models
-WORKDIR /models
-# Ultralytics (and the CPU-only PyTorch it needs) only live in this stage, to convert YOLOv8n to
-# ONNX at 320px; the final image keeps the converted file, not the toolchain.
-RUN pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu torch torchvision \
-    && pip install --no-cache-dir "ultralytics==8.4.174" "onnx>=1.12" onnxslim \
-    && pip uninstall -y opencv-python \
-    && pip install --no-cache-dir opencv-python-headless
-# (ultralytics pulls the desktop OpenCV, which needs X11 libraries the slim image lacks.)
-RUN python -c "from ultralytics import YOLO; YOLO('yolov8n.pt').export(format='onnx', imgsz=320, opset=12, simplify=True)" \
-    && rm yolov8n.pt
+FROM scratch AS models
+# YOLOv8n, already converted to ONNX at 320px and kept in the repository (12 MB): converting it
+# needs PyTorch, far too big to install on the Pi just for that. See scripts/export-yolo-onnx.sh.
+COPY models/yolov8n.onnx /models/
 # Face detection (YuNet) and recognition (SFace) from the OpenCV model zoo, checked by hash.
 ADD --checksum=sha256:8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4 \
     https://github.com/opencv/opencv_zoo/raw/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx \
