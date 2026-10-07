@@ -155,8 +155,10 @@ def _start_vision_worker(app: FastAPI, settings: Settings) -> asyncio.Task[None]
     # Imported lazily: ultralytics (and, if identification is on, deepface) are heavy and only
     # needed when vision is enabled.
     from app.infrastructure.vision.detection_worker import DetectionWorker
-    from app.infrastructure.vision.yolo_face_analyzer import YoloFaceAnalyzer
+    from app.infrastructure.vision.yolo_face_analyzer import YoloFaceAnalyzer, load_person_model
 
+    # YOLO before the whitelist: PyTorch loaded after TensorFlow segfaults the process.
+    model = load_person_model()
     whitelist = None
     if settings.vision_identify_faces:
         # deepface (and the TensorFlow it requires) is only imported in this branch.
@@ -164,7 +166,7 @@ def _start_vision_worker(app: FastAPI, settings: Settings) -> asyncio.Task[None]
 
         whitelist = FaceWhitelist.load(Path(settings.vision_known_faces_dir))
 
-    analyzer = YoloFaceAnalyzer(whitelist)
+    analyzer = YoloFaceAnalyzer(model, whitelist)
     worker = DetectionWorker(
         frames=camera_relay.frames(),
         analyzer=analyzer,

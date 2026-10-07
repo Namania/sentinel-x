@@ -36,8 +36,6 @@ logger = logging.getLogger(__name__)
 
 _PERSON_CLASS_ID = 0  # COCO class 0 is "person"
 _CONFIDENCE_THRESHOLD = 0.5
-# A person's face sits in the top portion of their full-body box.
-_FACE_CROP_HEIGHT_RATIO = 0.35
 
 
 def _resolve_model_path(model_path: str) -> str:
@@ -56,6 +54,18 @@ def _resolve_model_path(model_path: str) -> str:
     return model_path
 
 
+def load_person_model(model_path: str = "yolov8n.pt") -> YOLO:
+    """Load YOLO and run one dummy inference.
+
+    The first inference pulls in the rest of PyTorch's native stack (triton on x86). If
+    TensorFlow (deepface) is already loaded at that point, the process segfaults - so this must
+    run before the FaceWhitelist is loaded.
+    """
+    model = YOLO(_resolve_model_path(model_path))
+    model.predict(np.zeros((64, 64, 3), dtype=np.uint8), verbose=False)
+    return model
+
+
 class YoloFaceAnalyzer:
     """Person detection, with optional face identification.
 
@@ -64,9 +74,9 @@ class YoloFaceAnalyzer:
     no embedding computation, just YOLO.
     """
 
-    def __init__(self, whitelist: FaceWhitelist | None, model_path: str = "yolov8n.pt") -> None:
+    def __init__(self, model: YOLO, whitelist: FaceWhitelist | None) -> None:
         self._whitelist = whitelist
-        self._model = YOLO(_resolve_model_path(model_path))
+        self._model = model
 
     def analyze(self, jpeg_frame: bytes) -> list[PersonDetection]:
         image = _decode_jpeg(jpeg_frame)
@@ -96,8 +106,8 @@ class YoloFaceAnalyzer:
     ) -> tuple[str | None, float | None]:
         if self._whitelist is None or self._whitelist.size == 0:
             return None, None
-        face_bottom = y1 + int((y2 - y1) * _FACE_CROP_HEIGHT_RATIO)
-        crop = image[y1:face_bottom, x1:x2]
+        # The whole person box: the face detector inside embed_face finds the face itself.
+        crop = image[max(y1, 0) : y2, max(x1, 0) : x2]
         if crop.size == 0:
             return None, None
         try:
@@ -108,6 +118,8 @@ class YoloFaceAnalyzer:
             embedding = embed_face(crop)
         except Exception:  # noqa: BLE001 - a bad crop must not kill the detection loop
             logger.debug("face embedding failed for a crop", exc_info=True)
+            return None, None
+        if embedding is None:  # no usable face: turned away, in profile or too small
             return None, None
         match = self._whitelist.match(embedding)
         if match is None:

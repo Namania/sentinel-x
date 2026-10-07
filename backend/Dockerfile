@@ -9,6 +9,14 @@ ENV UV_COMPILE_BYTECODE=1 \
 
 WORKDIR /app
 
+# DeepFace pulls in the desktop opencv-python next to opencv-python-headless; it overwrites the
+# shared cv2 package and needs X11/GL libraries that the slim image does not ship.
+ARG VISION_IDENTIFY=false
+RUN if [ "$VISION_IDENTIFY" = "true" ]; then \
+      apt-get update && apt-get install -y --no-install-recommends libxcb1 libgl1 libglib2.0-0 \
+      && rm -rf /var/lib/apt/lists/*; \
+    fi
+
 RUN useradd --create-home app && chown app:app /app
 USER app
 

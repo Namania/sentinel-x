@@ -36,6 +36,8 @@ vision = [
 vision-identify = [
     "sentinel-backend[vision]",
     "deepface>=0.0.93",
+    # TensorFlow >= 2.16 ships Keras 3; deepface still needs the Keras 2 API from tf-keras.
+    "tf-keras>=2.16",
 ]
 
 [project.scripts]

@@ -27,8 +27,10 @@ class HttpxCameraSource:
 
     @asynccontextmanager
     async def open(self) -> AsyncIterator[HttpxStream]:
-        # No read timeout: a healthy camera streams forever; connect failures still time out.
-        timeout = httpx.Timeout(10.0, read=None)
+        # The read timeout is per read, not for the whole stream: a healthy camera sends several
+        # frames a second, so 10s of silence means a dead connection (e.g. the camera rebooted)
+        # and the relay must reconnect instead of waiting forever.
+        timeout = httpx.Timeout(10.0)
         async with (
             httpx.AsyncClient(timeout=timeout, transport=self._transport) as client,
             client.stream("GET", self._url) as response,

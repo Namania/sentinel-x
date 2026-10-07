@@ -9,3 +9,6 @@ services:
     build:
       args:
         VISION: "true"
+        VISION_IDENTIFY: "true"
+    volumes:
+      - ./backend/data/known_faces:/app/data/known_faces:ro
