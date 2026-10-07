@@ -63,6 +63,10 @@ services:
     # node against the host user's groups, so the user running Docker must be in it too.
     group_add:
       - "44"
+    environment:
+      # Keep the frame rate steady in dim light (the control's name depends on the kernel; the
+      # entrypoint skips the ones this camera does not expose).
+      WEBCAM_CONTROLS: ${WEBCAM_CONTROLS:-exposure_auto_priority=0,exposure_dynamic_framerate=0}
     command:
       - --device=/dev/video0
       - --host=0.0.0.0
@@ -70,7 +74,7 @@ services:
       - --format=${WEBCAM_FORMAT:-MJPEG}
       - --resolution=${WEBCAM_RESOLUTION:-1280x720}
       - --desired-fps=${WEBCAM_FPS:-15}
-      - --drop-same-frames=30
+      - --tcp-nodelay
       - --workers=2
     restart: unless-stopped
 

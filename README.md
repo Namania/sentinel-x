@@ -62,7 +62,12 @@ mettant son URL à la place.
 
 Réglages par variables d'environnement (shell ou `.env` à la racine) : `WEBCAM_DEVICE`
 (`/dev/video0`), `WEBCAM_FORMAT` (`MJPEG` ; `YUYV` si la webcam ne sort pas de MJPEG, µStreamer
-encode alors lui-même), `WEBCAM_RESOLUTION` (`1280x720`), `WEBCAM_FPS` (`15`). Sur le Pi :
+encode alors lui-même), `WEBCAM_RESOLUTION` (`1280x720`), `WEBCAM_FPS` (`15`), `WEBCAM_CONTROLS`
+(réglages V4L2 appliqués au démarrage, par défaut `exposure_auto_priority=0,exposure_dynamic_framerate=0` :
+sans ça la Logitech C270 divise son débit d'images par quatre en basse lumière, ce qui se voit comme
+des saccades ; `power_line_frequency=1` en plus contre le scintillement à 50 Hz). Contre les
+blocages : le front compare le compteur `frames` de `GET /api/camera/status` toutes les 4 s et
+rouvre la balise `<img>` s'il n'avance plus, et le relais retente la source après 1 s. Sur le Pi :
 
 ```sh
 v4l2-ctl --list-devices                      # quel /dev/videoN est la webcam

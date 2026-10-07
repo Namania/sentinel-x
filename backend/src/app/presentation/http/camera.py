@@ -50,6 +50,9 @@ async def _mjpeg(frames: AsyncIterator[bytes]) -> AsyncIterator[bytes]:
 class CameraStatusResponse(BaseModel):
     configured: bool
     viewers: int
+    # Frames relayed since the API started; the front compares two readings to spot a stalled
+    # upstream and reopens its <img>, which an MJPEG stream that simply stops never signals.
+    frames: int
 
 
 @router.get(
@@ -61,5 +64,7 @@ class CameraStatusResponse(BaseModel):
 )
 async def camera_status(_: StreamUserIdDep, relay: CameraRelayDep) -> CameraStatusResponse:
     return CameraStatusResponse(
-        configured=relay is not None, viewers=relay.viewer_count if relay else 0
+        configured=relay is not None,
+        viewers=relay.viewer_count if relay else 0,
+        frames=relay.frames_received if relay else 0,
     )

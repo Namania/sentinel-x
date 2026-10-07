@@ -34,6 +34,9 @@ function isValidAccessToken(token: string | null): boolean {
   );
 }
 
+// A healthy camera: the frame counter grows between two status calls.
+let cameraFrames = 0;
+
 const unauthenticated = () => HttpResponse.json({ detail: "Not authenticated" }, { status: 401 });
 
 export const sensorsLink = ws.link("ws://localhost:3000/ws");
@@ -88,7 +91,7 @@ export const handlers = [
   ),
   http.get("/api/camera/status", ({ request }) =>
     isValidAccessToken(bearer(request))
-      ? HttpResponse.json({ configured: true, viewers: 0 })
+      ? HttpResponse.json({ configured: true, viewers: 0, frames: (cameraFrames += 30) })
       : unauthenticated(),
   ),
   http.get("/api/alerts", ({ request }) => {

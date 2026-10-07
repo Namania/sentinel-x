@@ -30,7 +30,7 @@ StreamOpener = Callable[[], AbstractAsyncContextManager[UpstreamStream]]
 
 
 class CameraRelay:
-    def __init__(self, open_stream: StreamOpener, retry_delay: float = 2.0) -> None:
+    def __init__(self, open_stream: StreamOpener, retry_delay: float = 1.0) -> None:
         self._open_stream = open_stream
         self._retry_delay = retry_delay
         self._viewers = 0

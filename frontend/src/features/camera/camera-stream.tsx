@@ -7,10 +7,14 @@ export const RECONNECT_DELAY_MS = 2000;
 
 export type StreamState = "checking" | "unconfigured" | "connecting" | "live";
 
+/** How often, while live, the relay's frame counter is checked for a stall. */
+export const STALL_CHECK_MS = 4000;
+
 type Props = {
   onStateChange?: (state: StreamState) => void;
   onStatus?: (status: CameraStatus) => void;
   className?: string;
+  stallCheckMs?: number;
 };
 
 /**
@@ -18,7 +22,12 @@ type Props = {
  * after an error, releases the image on unmount. Renders nothing when no camera is configured;
  * the parent decides what to say.
  */
-export function CameraStream({ onStateChange, onStatus, className }: Props) {
+export function CameraStream({
+  onStateChange,
+  onStatus,
+  className,
+  stallCheckMs = STALL_CHECK_MS,
+}: Props) {
   const { accessToken, authFetch } = useAuth();
   // The stream keeps the token it was opened with; only a reconnection uses a newer one.
   const tokenRef = useRef(accessToken);
@@ -76,6 +85,37 @@ export function CameraStream({ onStateChange, onStatus, className }: Props) {
       cancelled = true;
     };
   }, [authFetch, connect, setState]);
+
+  // An MJPEG <img> that stops receiving frames keeps its last image forever and fires no event.
+  // While live, compare the relay's frame counter between two checks; no progress → reopen.
+  useEffect(() => {
+    if (state !== "live") return;
+    let lastFrames: number | null = null;
+    let cancelled = false;
+    const timer = setInterval(() => {
+      authFetch<CameraStatus>(CAMERA_STATUS_PATH)
+        .then((status) => {
+          if (cancelled) return;
+          if (!status.configured) {
+            setState("unconfigured");
+            return;
+          }
+          if (typeof status.frames !== "number") return;
+          if (lastFrames !== null && status.frames === lastFrames) {
+            connect();
+            return;
+          }
+          lastFrames = status.frames;
+        })
+        .catch(() => {
+          // Status unreachable: the <img> error handler takes care of a dead relay.
+        });
+    }, stallCheckMs);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [state, stallCheckMs, authFetch, connect, setState]);
 
   // Release the camera and the pending timer on unmount.
   useEffect(() => {

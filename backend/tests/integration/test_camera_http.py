@@ -118,7 +118,7 @@ def test_status_reports_an_unconfigured_camera(client):
     tokens = create_user_and_login(client)
     response = client.get(f"/camera/status?token={tokens['access_token']}")
     assert response.status_code == 200
-    assert response.json() == {"configured": False, "viewers": 0}
+    assert response.json() == {"configured": False, "viewers": 0, "frames": 0}
 
 
 def test_status_reports_a_configured_camera_and_its_viewers(client):
@@ -129,4 +129,4 @@ def test_status_reports_a_configured_camera_and_its_viewers(client):
         headers = {"Authorization": f"Bearer {tokens['access_token']}"}
         response = configured.get("/camera/status", headers=headers)
     assert response.status_code == 200
-    assert response.json() == {"configured": True, "viewers": 0}
+    assert response.json() == {"configured": True, "viewers": 0, "frames": 0}

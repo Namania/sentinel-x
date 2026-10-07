@@ -97,3 +97,8 @@ async def test_reconnects_when_upstream_ends_cleanly(camera, relay):
     camera._chunks.put_nowait(None)
     await wait_until(lambda: camera.opens == 2)
     await viewer.aclose()
+
+
+def test_reconnects_after_one_second_by_default():
+    # The source is a local µStreamer now: a hiccup should cost viewers one second, not two.
+    assert CameraRelay(lambda: None)._retry_delay == 1.0  # noqa: SLF001 - the default is the contract
