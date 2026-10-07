@@ -6,6 +6,7 @@ from fastapi import Depends, Header, HTTPException, Query, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from starlette.requests import HTTPConnection
 
+from app.application.alerts.siren import Siren
 from app.application.ports.password_hasher import PasswordHasher
 from app.application.ports.token_service import InvalidToken, TokenService
 from app.application.ports.unit_of_work import UnitOfWork
@@ -55,6 +56,10 @@ def get_server_health_history(conn: HTTPConnection) -> HealthHistory:
 
 def get_thresholds(conn: HTTPConnection) -> Thresholds:
     return conn.app.state.thresholds
+
+
+def get_siren(conn: HTTPConnection) -> Siren:
+    return conn.app.state.siren
 
 
 def decode_access_token(token: str | None, tokens: TokenService) -> UUID | None:
@@ -137,3 +142,4 @@ CameraRelayDep = Annotated[CameraRelay | None, Depends(get_camera_relay)]
 DeviceKeyDep = Annotated[None, Depends(require_device_key)]
 ServerHealthHistoryDep = Annotated[HealthHistory, Depends(get_server_health_history)]
 ThresholdsDep = Annotated[Thresholds, Depends(get_thresholds)]
+SirenDep = Annotated[Siren, Depends(get_siren)]

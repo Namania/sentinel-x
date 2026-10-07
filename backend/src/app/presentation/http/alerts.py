@@ -9,7 +9,8 @@ from pydantic import BaseModel, Field
 from app.application.alerts.dtos import AlertOutput
 from app.domain.alert import Alert, Direction, Metric
 from app.domain.repositories import AlertStatus
-from app.presentation.dependencies import CurrentUserIdDep, UowDep
+from app.domain.siren import SirenState
+from app.presentation.dependencies import CurrentUserIdDep, SirenDep, UowDep
 
 router = APIRouter(prefix="/alerts", tags=["alerts"])
 
@@ -58,3 +59,37 @@ async def list_alerts(
 async def alert_summary(_: CurrentUserIdDep, uow: UowDep) -> AlertSummary:
     async with uow as tx:
         return AlertSummary(open=await tx.alerts.count_open())
+
+
+class SirenResponse(BaseModel):
+    on: bool
+    reason: Metric | None
+    open: int
+    muted_until: datetime | None
+
+    @classmethod
+    def from_state(cls, state: SirenState) -> "SirenResponse":
+        return cls(on=state.on, reason=state.reason, open=state.open, muted_until=state.muted_until)
+
+
+@router.get(
+    "/siren",
+    response_model=SirenResponse,
+    summary="État de la sirène (buzzer de l'ESP32)",
+    description="`on` quand une alerte ouverte correspond à `BUZZER_TRIGGERS` et qu'aucune coupure "
+    "n'est en cours. L'état est relu depuis les alertes à chaque appel.",
+)
+async def siren_state(_: CurrentUserIdDep, siren: SirenDep) -> SirenResponse:
+    return SirenResponse.from_state(await siren.refresh())
+
+
+@router.post(
+    "/siren/mute", response_model=SirenResponse, summary="Couper la sirène quelques minutes"
+)
+async def mute_siren(user_id: CurrentUserIdDep, siren: SirenDep) -> SirenResponse:
+    return SirenResponse.from_state(await siren.mute(by=user_id))
+
+
+@router.delete("/siren/mute", response_model=SirenResponse, summary="Réactiver la sirène")
+async def unmute_siren(user_id: CurrentUserIdDep, siren: SirenDep) -> SirenResponse:
+    return SirenResponse.from_state(await siren.unmute(by=user_id))

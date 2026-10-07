@@ -49,6 +49,7 @@ class MqttSubscriber:
         broadcaster: EventBroadcaster,
         sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
         thresholds: Thresholds = DEFAULT_THRESHOLDS,
+        on_alerts_changed: Callable[[], Awaitable[None]] | None = None,
     ) -> None:
         self._connect = connect
         self._topic = topic
@@ -56,6 +57,7 @@ class MqttSubscriber:
         self._broadcaster = broadcaster
         self._sleep = sleep
         self._thresholds = thresholds
+        self._on_alerts_changed = on_alerts_changed
 
     async def run(self) -> None:
         attempt = 0
@@ -82,7 +84,10 @@ class MqttSubscriber:
         try:
             reading = parse_device_message(str(message.topic), raw)
             await RecordReading(
-                self._uow_factory(), self._broadcaster, thresholds=self._thresholds
+                self._uow_factory(),
+                self._broadcaster,
+                thresholds=self._thresholds,
+                on_alerts_changed=self._on_alerts_changed,
             ).execute(reading)
         except DomainError as exc:
             logger.warning("mqtt: message on %s ignored: %s", message.topic, exc)

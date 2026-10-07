@@ -12,6 +12,7 @@ from app.presentation.dependencies import (
     CurrentUserIdDep,
     DeviceKeyDep,
     HubDep,
+    SirenDep,
     ThresholdsDep,
     UowDep,
 )
@@ -131,9 +132,16 @@ def _utc(moment: datetime | None, default: datetime) -> datetime:
     "serveur.",
 )
 async def post_reading(
-    body: ReadingRequest, _: DeviceKeyDep, uow: UowDep, hub: HubDep, thresholds: ThresholdsDep
+    body: ReadingRequest,
+    _: DeviceKeyDep,
+    uow: UowDep,
+    hub: HubDep,
+    thresholds: ThresholdsDep,
+    siren: SirenDep,
 ) -> ReadingResponse:
-    use_case = RecordReading(uow=uow, broadcaster=hub, thresholds=thresholds)
+    use_case = RecordReading(
+        uow=uow, broadcaster=hub, thresholds=thresholds, on_alerts_changed=siren.refresh
+    )
     output = await use_case.execute(body.to_input())
     return ReadingResponse.from_output(output)
 

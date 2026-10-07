@@ -45,9 +45,11 @@ def test_alert_events_follow_the_reading_event_on_the_websocket(client):
         opened = ws.receive_json()
         assert opened["type"] == "alert.opened"
         assert opened["data"]["opened_at"].endswith("Z")
+        assert ws.receive_json()["type"] == "siren.state"  # high temperature sounds the siren
         client.post("/sensors/readings", json=COOL, headers=DEVICE_HEADERS)
         assert ws.receive_json()["type"] == "sensor.reading"
         assert ws.receive_json()["type"] == "alert.resolved"
+        assert ws.receive_json()["type"] == "siren.state"
 
 
 def test_limit_is_validated(client):
