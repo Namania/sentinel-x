@@ -1,4 +1,4 @@
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime, timedelta
 
 from app.application.alerts.dtos import AlertOutput
@@ -33,11 +33,14 @@ class RecordReading:
         broadcaster: EventBroadcaster,
         thresholds: Thresholds = DEFAULT_THRESHOLDS,
         clock: Callable[[], datetime] | None = None,
+        on_alerts_changed: Callable[[], Awaitable[None]] | None = None,
     ) -> None:
         self._uow = uow
         self._broadcaster = broadcaster
         self._thresholds = thresholds
         self._clock = clock or _utc_now
+        # Called after the commit and the alert events when an alert opened or closed (the siren).
+        self._on_alerts_changed = on_alerts_changed
 
     def _plausible_time(self, recorded_at: datetime | None) -> datetime:
         now = self._clock()
@@ -67,6 +70,8 @@ class RecordReading:
             await self._broadcaster.broadcast(
                 {"type": kind, "data": AlertOutput.from_entity(alert).to_event()}
             )
+        if alert_events and self._on_alerts_changed is not None:
+            await self._on_alerts_changed()
         return output
 
     async def _apply_alerts(

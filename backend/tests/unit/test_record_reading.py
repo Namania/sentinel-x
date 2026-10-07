@@ -180,3 +180,22 @@ async def test_one_repository_lookup_per_reading():
     uow, bus = InMemoryUnitOfWork(), RecordingBroadcaster()
     await RecordReading(uow, bus, clock=lambda: NOW).execute(make_input())
     assert uow.alerts.lookups == 1
+
+
+async def test_on_alerts_changed_fires_only_when_an_alert_opens_or_closes():
+    uow, bus = InMemoryUnitOfWork(), RecordingBroadcaster()
+    calls = 0
+
+    async def changed() -> None:
+        nonlocal calls
+        calls += 1
+
+    use_case = RecordReading(uow, bus, clock=lambda: NOW, on_alerts_changed=changed)
+    await use_case.execute(make_input())  # in range: nothing
+    assert calls == 0
+    await use_case.execute(make_input(temperature_c=30.4))  # opens
+    assert calls == 1
+    await use_case.execute(make_input(temperature_c=31.0))  # worsens: no event
+    assert calls == 1
+    await use_case.execute(make_input(temperature_c=29.0))  # resolves
+    assert calls == 2
