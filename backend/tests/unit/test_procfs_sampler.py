@@ -106,3 +106,12 @@ def test_unreadable_disk_path_is_a_sampling_error(host: Path):
 
     with pytest.raises(SamplingError):
         make_sampler(host, statvfs=boom).sample()
+
+
+def test_guest_time_is_not_counted_twice(host: Path):
+    (host / "proc" / "stat").write_text("cpu 100 0 100 800 0 0 0 0 100 0\n")
+    sampler = make_sampler(host)
+    sampler.sample()
+    (host / "proc" / "stat").write_text("cpu 200 0 200 1500 0 0 0 0 200 0\n")
+    # guest (field 9) is already inside user: Δtotal = 900, Δidle = 700 → 22.2 %, not 30 %
+    assert cpu_of(sampler) == pytest.approx(22.22, abs=0.01)

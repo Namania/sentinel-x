@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from datetime import UTC, datetime
 
 import pytest
@@ -104,3 +105,31 @@ async def test_stops_cleanly_when_cancelled():
     task.cancel()
     with pytest.raises(asyncio.CancelledError):
         await task
+
+
+async def test_a_failure_streak_warns_once_then_whispers_until_the_next_success(caplog):
+    caplog.set_level(logging.DEBUG, logger="app.infrastructure.system.monitor")
+    monitor, _, bus, _ = build(
+        ScriptedSampler(
+            SamplingError("no mount"),
+            SamplingError("no mount"),
+            SamplingError("no mount"),
+            sample(1),
+            SamplingError("gone again"),
+            sample(2),
+        )
+    )
+    task = await run_until(monitor, lambda: len(bus.events) == 2)
+    failures = [
+        r for r in caplog.records if "no mount" in r.getMessage() or "gone again" in r.getMessage()
+    ]
+    assert [r.levelno for r in failures][:4] == [
+        logging.WARNING,
+        logging.DEBUG,
+        logging.DEBUG,
+        logging.WARNING,
+    ]
+    assert any(
+        "3 échecs" in r.getMessage() or "3 failures" in r.getMessage() for r in caplog.records
+    )
+    task.cancel()

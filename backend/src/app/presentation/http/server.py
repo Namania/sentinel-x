@@ -1,9 +1,10 @@
+from dataclasses import asdict
 from datetime import datetime
 
 from fastapi import APIRouter
 from pydantic import BaseModel
 
-from app.application.server.health import ServerHealth, to_dict
+from app.application.server.health import ServerHealth
 from app.presentation.dependencies import CurrentUserIdDep, ServerHealthHistoryDep
 
 router = APIRouter(prefix="/server", tags=["server"])
@@ -24,7 +25,7 @@ class ServerHealthResponse(BaseModel):
 
     @classmethod
     def from_sample(cls, sample: ServerHealth) -> "ServerHealthResponse":
-        return cls(**to_dict(sample))
+        return cls(**asdict(sample))
 
 
 class ServerHealthEnvelope(BaseModel):

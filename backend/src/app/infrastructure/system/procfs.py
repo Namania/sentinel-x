@@ -69,7 +69,9 @@ class ProcfsSampler:
         fields = [int(v) for v in self._read("stat").splitlines()[0].split()[1:]]
         if len(fields) < 4:
             raise ValueError("cpu line too short")
-        total = sum(fields)
+        # user nice system idle iowait irq softirq steal; guest and guest_nice (fields 9-10) are
+        # already folded into user and nice by the kernel, so they would count twice.
+        total = sum(fields[:8])
         idle = fields[3] + (fields[4] if len(fields) > 4 else 0)  # idle + iowait
         previous, self._last_cpu = self._last_cpu, (total, idle)
         if previous is None:
