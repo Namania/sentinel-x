@@ -143,6 +143,7 @@ async def _announce_siren(app: FastAPI) -> None:
     except Exception:  # noqa: BLE001 - the database may not be ready; the first alert will refresh
         logger.warning("siren: initial state not published", exc_info=True)
 
+
 def _start_vision_worker(app: FastAPI, settings: Settings) -> asyncio.Task[None] | None:
     """Person detection (and optional face identification) on the camera stream."""
     if not settings.vision_enabled:
@@ -154,8 +155,9 @@ def _start_vision_worker(app: FastAPI, settings: Settings) -> asyncio.Task[None]
 
     import cv2
 
+    from app.application.alerts.intruder import TrackBlacklistAlerts
     from app.infrastructure.vision.detection_worker import DetectionWorker
-    from app.infrastructure.vision.face_whitelist import FaceEncoder, FaceWhitelist
+    from app.infrastructure.vision.face_whitelist import FaceEncoder, FaceList
     from app.infrastructure.vision.light_analyzer import LightVisionAnalyzer
     from app.infrastructure.vision.person_detector import PersonDetector
 
@@ -164,9 +166,15 @@ def _start_vision_worker(app: FastAPI, settings: Settings) -> asyncio.Task[None]
     try:
         detector = PersonDetector(models_dir)
         faces = None
+        blacklist = None
         if settings.vision_identify_faces:
             encoder = FaceEncoder(models_dir)
-            faces = (encoder, FaceWhitelist.load(Path(settings.vision_known_faces_dir), encoder))
+            known_faces_dir = Path(settings.vision_known_faces_dir)
+            faces = (encoder, FaceList.load(known_faces_dir, encoder, label="whitelist"))
+            blacklist = (
+                encoder,
+                FaceList.load(known_faces_dir / "blacklist", encoder, label="blacklist"),
+            )
     except cv2.error:
         logger.exception(
             "vision models missing or unreadable in %s (the Docker image provides them); "
@@ -176,16 +184,28 @@ def _start_vision_worker(app: FastAPI, settings: Settings) -> asyncio.Task[None]
         return None
 
     whitelist = faces[1] if faces is not None else None
-    analyzer = LightVisionAnalyzer(detector, faces)
+    blacklisted = blacklist[1] if blacklist is not None else None
+    analyzer = LightVisionAnalyzer(detector, faces, blacklist)
+    blacklist_alerts = (
+        TrackBlacklistAlerts(
+            uow_factory=lambda: SqlAlchemyUnitOfWork(app.state.session_factory),
+            broadcaster=app.state.hub,
+            on_alerts_changed=app.state.siren.refresh,
+        )
+        if blacklisted is not None
+        else None
+    )
     worker = DetectionWorker(
         frames=camera_relay.frames(),
         analyzer=analyzer,
         broadcaster=app.state.hub,
         interval_seconds=settings.vision_interval_seconds,
+        blacklist_alerts=blacklist_alerts,
     )
     logger.info(
-        "vision worker starting (face identification %s, %d known face(s))",
+        "vision worker starting (face identification %s, %d known face(s), %d blacklisted)",
         "on" if whitelist is not None else "off",
         whitelist.size if whitelist is not None else 0,
+        blacklisted.size if blacklisted is not None else 0,
     )
     return asyncio.create_task(worker.run(), name="vision-detection-worker")
