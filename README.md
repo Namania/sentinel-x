@@ -143,7 +143,16 @@ appareils : `ALERT_TEMPERATURE_MIN_C=10`, `ALERT_TEMPERATURE_MAX_C=30`, `ALERT_H
 `ALERT_HUMIDITY_MAX_PCT=70`, `ALERT_GAS_MAX_MV` (vide : seul l'état « alerte » de l'ESP compte).
 `GET /api/alerts?status=open|resolved|all&device_id=…&limit=…` (ouvertes d'abord),
 `GET /api/alerts/summary` → `{"open": n}`. Le Dashboard, la page `/alertes` et le badge de la nav
-suivent la liste en direct. Sans matériel : `uv run simulate-sensors --spike
+suivent la liste en direct.
+
+**Sirène.** L'API publie l'état du buzzer sur le topic MQTT **retenu** `sentinel/cmd/buzzer`
+(QoS 1) : `{"on": true, "reason": "gas", "open": 2, "muted_until": null, "at": "…"}`. `on` est vrai
+quand une alerte ouverte correspond à `BUZZER_TRIGGERS` (`gas,temperature:high` par défaut ;
+`metric` ou `metric:low|high`) et qu'aucune coupure n'est en cours. `GET /api/alerts/siren`,
+`POST /api/alerts/siren/mute` (coupe `BUZZER_MUTE_MINUTES`, 15 par défaut),
+`DELETE /api/alerts/siren/mute` ; événement WebSocket `siren.state`. L'ESP32 n'a qu'à s'abonner et
+lire `on` : exemple Arduino dans `docs/superpowers/specs/2026-10-07-siren-mqtt-design.md`. Test à
+la main : `docker compose exec mosquitto mosquitto_sub -t sentinel/cmd/buzzer -v`. Sans matériel : `uv run simulate-sensors --spike
 [--spike-metric temperature|humidity|gas]` envoie 5 mesures normales, 6 hors bornes, 5 normales.
 
 ## Front

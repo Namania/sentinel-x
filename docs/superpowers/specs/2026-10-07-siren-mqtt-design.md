@@ -1,7 +1,7 @@
 # Sirène : buzzer de l'ESP32 piloté en MQTT par les alertes — design
 
 Date : 2026-10-07
-Statut : validé, à implémenter
+Statut : implémenté le 2026-10-07
 
 ## Objectif
 
