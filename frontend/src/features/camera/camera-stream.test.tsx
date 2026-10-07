@@ -1,61 +1,73 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
-import { http, HttpResponse } from "msw";
+import { http } from "msw";
 import { describe, expect, it } from "vitest";
 import { REFRESH_TOKEN_KEY } from "@/features/auth/token-storage";
 import { renderWithProviders } from "@/test/render";
-import { server, VALID_REFRESH } from "@/test/server";
+import { fakeJpeg, mjpegResponse, server, VALID_REFRESH } from "@/test/server";
 import { CameraStream } from "./camera-stream";
 
 const ALT = "Flux vidéo de la caméra";
 
-function renderStream() {
+function renderStream(stallMs = 10_000) {
   localStorage.setItem(REFRESH_TOKEN_KEY, VALID_REFRESH);
-  return renderWithProviders(<CameraStream stallCheckMs={40} />);
+  return renderWithProviders(<CameraStream stallMs={stallMs} />);
 }
 
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-describe("CameraStream stall watchdog", () => {
-  it("reopens the stream when the relay stops receiving frames", async () => {
+describe("CameraStream", () => {
+  it("shows the latest frame only: frames that arrive while one is decoding are skipped", async () => {
     server.use(
-      http.get("/api/camera/status", () =>
-        HttpResponse.json({ configured: true, viewers: 1, frames: 1200 }),
+      http.get("/api/camera/stream", () =>
+        mjpegResponse([fakeJpeg("one"), fakeJpeg("two"), fakeJpeg("three")]),
       ),
     );
     renderStream();
     const img = await screen.findByAltText(ALT);
+    await waitFor(() => expect(img.getAttribute("src")).toMatch(/^blob:/));
+    await wait(50);
+    const shownWhileBusy = img.getAttribute("src");
+    // The first frame is still "decoding" (jsdom never fires load by itself): nothing replaced it.
+    expect(shownWhileBusy).toBe(img.getAttribute("src"));
     fireEvent.load(img);
-    const first = img.getAttribute("src");
-    await waitFor(() => expect(img.getAttribute("src")).not.toBe(first), { timeout: 2000 });
-    expect(img.getAttribute("src")).toMatch(/&t=\d+-2$/);
-    expect(screen.getByRole("status")).toHaveTextContent("Connexion à la caméra…");
+    // Once decoded, the newest pending frame is shown — the middle one was dropped.
+    await waitFor(() => expect(img.getAttribute("src")).not.toBe(shownWhileBusy));
+    const afterLoad = img.getAttribute("src");
+    fireEvent.load(img);
+    await wait(30);
+    expect(img.getAttribute("src")).toBe(afterLoad);
   });
 
-  it("leaves a healthy stream alone", async () => {
-    let frames = 1000;
+  it("reopens the stream when no frame arrived for a while", async () => {
+    let requests = 0;
     server.use(
-      http.get("/api/camera/status", () =>
-        HttpResponse.json({ configured: true, viewers: 1, frames: (frames += 60) }),
-      ),
+      http.get("/api/camera/stream", () => {
+        requests += 1;
+        return mjpegResponse([fakeJpeg(`r${requests}`)]);
+      }),
+    );
+    renderStream(120);
+    const img = await screen.findByAltText(ALT);
+    await waitFor(() => expect(img.getAttribute("src")).toMatch(/^blob:/));
+    fireEvent.load(img);
+    await waitFor(() => expect(requests).toBeGreaterThanOrEqual(2), { timeout: 4000 });
+  }, 6000);
+
+  it("shows the live state once a frame is displayed and goes back to connecting on failure", async () => {
+    let requests = 0;
+    server.use(
+      http.get("/api/camera/stream", () => {
+        requests += 1;
+        return requests === 1
+          ? mjpegResponse([fakeJpeg("a")], 0, true) // ends cleanly after one frame
+          : mjpegResponse([fakeJpeg("b")]);
+      }),
     );
     renderStream();
     const img = await screen.findByAltText(ALT);
+    await waitFor(() => expect(img.getAttribute("src")).toMatch(/^blob:/));
     fireEvent.load(img);
-    const first = img.getAttribute("src");
-    await wait(250);
-    expect(img.getAttribute("src")).toBe(first);
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
-  });
-
-  it("does not guess when the API reports no frame counter", async () => {
-    server.use(
-      http.get("/api/camera/status", () => HttpResponse.json({ configured: true, viewers: 1 })),
-    );
-    renderStream();
-    const img = await screen.findByAltText(ALT);
-    fireEvent.load(img);
-    const first = img.getAttribute("src");
-    await wait(250);
-    expect(img.getAttribute("src")).toBe(first);
-  });
+    await waitFor(() => expect(requests).toBe(2), { timeout: 4000 });
+  }, 6000);
 });

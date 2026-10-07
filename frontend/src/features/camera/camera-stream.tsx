@@ -1,44 +1,48 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/features/auth/use-auth";
+import { API_BASE } from "@/lib/api";
 import { cn } from "@/lib/utils";
-import { CAMERA_STATUS_PATH, streamUrl, type CameraStatus } from "./camera-api";
+import { CAMERA_STATUS_PATH, type CameraStatus } from "./camera-api";
+import { boundaryFromContentType, MjpegFrames } from "./mjpeg-reader";
 
 export const RECONNECT_DELAY_MS = 2000;
+/** No frame for this long while connected → the stream is reopened. */
+export const STALL_MS = 5000;
+export const STREAM_PATH = "/camera/stream";
 
 export type StreamState = "checking" | "unconfigured" | "connecting" | "live";
-
-/** How often, while live, the relay's frame counter is checked for a stall. */
-export const STALL_CHECK_MS = 4000;
 
 type Props = {
   onStateChange?: (state: StreamState) => void;
   onStatus?: (status: CameraStatus) => void;
   className?: string;
-  stallCheckMs?: number;
+  stallMs?: number;
 };
 
 /**
- * The relayed MJPEG stream: asks `/camera/status`, opens `<img>` on the relay, reconnects 2 s
- * after an error, releases the image on unmount. Renders nothing when no camera is configured;
- * the parent decides what to say.
+ * The relayed MJPEG stream, read with `fetch` and shown one frame at a time through an <img>.
+ *
+ * A plain `<img src=stream>` decodes every frame it receives, in order: when frames arrive faster
+ * than the browser draws them, the delay grows for as long as the page stays open. Here a frame
+ * that arrives while the previous one is still decoding replaces the pending one instead, so the
+ * picture is always the newest and the latency stays bounded. Reconnects 2 s after a failure or
+ * when no frame arrived for `stallMs`; releases everything on unmount. Renders nothing when no
+ * camera is configured; the parent decides what to say.
  */
-export function CameraStream({
-  onStateChange,
-  onStatus,
-  className,
-  stallCheckMs = STALL_CHECK_MS,
-}: Props) {
+export function CameraStream({ onStateChange, onStatus, className, stallMs = STALL_MS }: Props) {
   const { accessToken, authFetch } = useAuth();
-  // The stream keeps the token it was opened with; only a reconnection uses a newer one.
   const tokenRef = useRef(accessToken);
   // Set when the stream should open but the session token has not been committed yet.
   const pendingConnect = useRef(false);
   const [state, setStateRaw] = useState<StreamState>("checking");
   const [src, setSrc] = useState<string | null>(null);
-  const attemptRef = useRef(0);
+  const controller = useRef<AbortController | null>(null);
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // React nulls element refs before effect cleanups run, so keep the last <img> ourselves.
-  const lastImg = useRef<HTMLImageElement | null>(null);
+  const stallTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Frame display: one decode at a time, the newest frame waits its turn, older ones are dropped.
+  const busy = useRef(false);
+  const pending = useRef<Uint8Array | null>(null);
+  const shownUrl = useRef<string | null>(null);
   const onStateChangeRef = useRef(onStateChange);
   const onStatusRef = useRef(onStatus);
   useEffect(() => {
@@ -51,16 +55,65 @@ export function CameraStream({
     onStateChangeRef.current?.(next);
   }, []);
 
+  const display = useCallback((frame: Uint8Array) => {
+    busy.current = true;
+    const url = URL.createObjectURL(new Blob([frame as BlobPart], { type: "image/jpeg" }));
+    setSrc(url);
+  }, []);
+
   const connect = useCallback(() => {
     if (!tokenRef.current) {
       pendingConnect.current = true;
       return;
     }
     pendingConnect.current = false;
-    attemptRef.current += 1;
+    controller.current?.abort();
+    if (stallTimer.current) clearTimeout(stallTimer.current);
+    const abort = new AbortController();
+    controller.current = abort;
     setState("connecting");
-    setSrc(streamUrl(tokenRef.current, attemptRef.current));
-  }, [setState]);
+
+    const armStallTimer = () => {
+      if (stallTimer.current) clearTimeout(stallTimer.current);
+      stallTimer.current = setTimeout(() => {
+        if (!abort.signal.aborted) connect();
+      }, stallMs);
+    };
+    const scheduleReconnect = () => {
+      if (abort.signal.aborted) return;
+      setState("connecting");
+      if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
+      reconnectTimer.current = setTimeout(connect, RECONNECT_DELAY_MS);
+    };
+
+    void (async () => {
+      try {
+        const response = await fetch(new URL(`${API_BASE}${STREAM_PATH}`, window.location.origin), {
+          headers: { Authorization: `Bearer ${tokenRef.current}` },
+          signal: abort.signal,
+        });
+        if (!response.ok || !response.body) throw new Error(`stream ${response.status}`);
+        const frames = new MjpegFrames(
+          boundaryFromContentType(response.headers.get("content-type") ?? ""),
+        );
+        const reader = response.body.getReader();
+        armStallTimer();
+        for (;;) {
+          const { value, done } = await reader.read();
+          if (done || abort.signal.aborted) break;
+          for (const frame of frames.feed(value)) {
+            armStallTimer();
+            if (busy.current) pending.current = frame;
+            else display(frame);
+          }
+        }
+      } catch {
+        // Network failure, bad status or malformed stream: handled by the retry below.
+      }
+      if (stallTimer.current) clearTimeout(stallTimer.current);
+      scheduleReconnect();
+    })();
+  }, [display, setState, stallMs]);
 
   useEffect(() => {
     tokenRef.current = accessToken;
@@ -86,49 +139,23 @@ export function CameraStream({
     };
   }, [authFetch, connect, setState]);
 
-  // An MJPEG <img> that stops receiving frames keeps its last image forever and fires no event.
-  // While live, compare the relay's frame counter between two checks; no progress → reopen.
-  useEffect(() => {
-    if (state !== "live") return;
-    let lastFrames: number | null = null;
-    let cancelled = false;
-    const timer = setInterval(() => {
-      authFetch<CameraStatus>(CAMERA_STATUS_PATH)
-        .then((status) => {
-          if (cancelled) return;
-          if (!status.configured) {
-            setState("unconfigured");
-            return;
-          }
-          if (typeof status.frames !== "number") return;
-          if (lastFrames !== null && status.frames === lastFrames) {
-            connect();
-            return;
-          }
-          lastFrames = status.frames;
-        })
-        .catch(() => {
-          // Status unreachable: the <img> error handler takes care of a dead relay.
-        });
-    }, stallCheckMs);
-    return () => {
-      cancelled = true;
-      clearInterval(timer);
-    };
-  }, [state, stallCheckMs, authFetch, connect, setState]);
-
-  // Release the camera and the pending timer on unmount.
+  // Release the connection, the timers and the last frame on unmount.
   useEffect(() => {
     return () => {
+      controller.current?.abort();
       if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
-      if (lastImg.current) lastImg.current.src = "";
+      if (stallTimer.current) clearTimeout(stallTimer.current);
+      if (shownUrl.current) URL.revokeObjectURL(shownUrl.current);
     };
   }, []);
 
-  const scheduleReconnect = () => {
-    setState("connecting");
-    if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
-    reconnectTimer.current = setTimeout(connect, RECONNECT_DELAY_MS);
+  const onFrameDone = () => {
+    if (shownUrl.current && shownUrl.current !== src) URL.revokeObjectURL(shownUrl.current);
+    shownUrl.current = src;
+    busy.current = false;
+    const next = pending.current;
+    pending.current = null;
+    if (next) display(next);
   };
 
   if (state === "unconfigured") return null;
@@ -137,14 +164,14 @@ export function CameraStream({
     <div className={cn("relative bg-black", className)}>
       {src && (
         <img
-          ref={(element) => {
-            if (element) lastImg.current = element;
-          }}
           src={src}
           alt="Flux vidéo de la caméra"
           className="absolute inset-0 h-full w-full object-contain"
-          onLoad={() => setState("live")}
-          onError={scheduleReconnect}
+          onLoad={() => {
+            setState("live");
+            onFrameDone();
+          }}
+          onError={onFrameDone}
         />
       )}
       {state !== "live" && (

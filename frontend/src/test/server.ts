@@ -41,6 +41,44 @@ const unauthenticated = () => HttpResponse.json({ detail: "Not authenticated" },
 
 export const sensorsLink = ws.link("ws://localhost:3000/ws");
 
+const JPEG_BOUNDARY = "frame";
+const encoder = new TextEncoder();
+
+function mjpegPart(frame: Uint8Array): Uint8Array {
+  const head = encoder.encode(
+    `--${JPEG_BOUNDARY}\r\nContent-Type: image/jpeg\r\nContent-Length: ${frame.length}\r\n\r\n`,
+  );
+  const out = new Uint8Array(head.length + frame.length + 2);
+  out.set(head, 0);
+  out.set(frame, head.length);
+  out.set([13, 10], head.length + frame.length);
+  return out;
+}
+
+/** A fake JPEG: the SOI/EOI markers around a label, enough for a Blob. */
+export function fakeJpeg(label: string): Uint8Array {
+  return new Uint8Array([0xff, 0xd8, ...encoder.encode(label), 0xff, 0xd9]);
+}
+
+/**
+ * An MJPEG response that sends `frames` `gapMs` apart, then stays open (or closes with `end`).
+ * Tests that need control over the timing build their own ReadableStream.
+ */
+export function mjpegResponse(frames: Uint8Array[], gapMs = 0, end = false) {
+  const stream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      for (const frame of frames) {
+        controller.enqueue(mjpegPart(frame));
+        if (gapMs) await new Promise((r) => setTimeout(r, gapMs));
+      }
+      if (end) controller.close();
+    },
+  });
+  return new HttpResponse(stream, {
+    headers: { "Content-Type": `multipart/x-mixed-replace; boundary=${JPEG_BOUNDARY}` },
+  });
+}
+
 const BUCKET_MS: Record<string, number> = {
   "1m": 60_000,
   "5m": 300_000,
@@ -88,6 +126,10 @@ export const handlers = [
   }),
   http.get("/api/users/me", ({ request }) =>
     isValidAccessToken(bearer(request)) ? HttpResponse.json(TEST_USER) : unauthenticated(),
+  ),
+  // A live camera: one frame right away, then the connection stays open.
+  http.get("/api/camera/stream", ({ request }) =>
+    isValidAccessToken(bearer(request)) ? mjpegResponse([fakeJpeg("first")]) : unauthenticated(),
   ),
   http.get("/api/camera/status", ({ request }) =>
     isValidAccessToken(bearer(request))

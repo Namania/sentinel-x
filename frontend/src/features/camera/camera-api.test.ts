@@ -1,8 +1,8 @@
 import { expect, it } from "vitest";
-import { streamUrl } from "./camera-api";
+import { viewersLabel } from "./camera-api";
 
-it("builds the relayed stream url with an encoded token and a cache buster", () => {
-  const url = streamUrl("a.b/c+d", 3);
-  expect(url.startsWith("/api/camera/stream?token=a.b%2Fc%2Bd&t=")).toBe(true);
-  expect(url).toMatch(/&t=\d+-3$/);
+it("agrees the viewer count in French", () => {
+  expect(viewersLabel(0)).toBe("0 spectateur");
+  expect(viewersLabel(1)).toBe("1 spectateur");
+  expect(viewersLabel(3)).toBe("3 spectateurs");
 });

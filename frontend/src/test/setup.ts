@@ -48,3 +48,8 @@ vi.stubGlobal(
 Element.prototype.scrollIntoView ??= () => {};
 Element.prototype.hasPointerCapture ??= () => false;
 Element.prototype.releasePointerCapture ??= () => {};
+
+// jsdom has no object URLs; the camera stream shows each frame through one.
+let objectUrls = 0;
+URL.createObjectURL ??= () => `blob:test/${++objectUrls}`;
+URL.revokeObjectURL ??= () => {};

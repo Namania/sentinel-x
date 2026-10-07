@@ -1,7 +1,7 @@
-import { fireEvent, screen } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { REFRESH_TOKEN_KEY } from "@/features/auth/token-storage";
 import { renderRoutes } from "@/test/render";
 import { server, VALID_REFRESH } from "@/test/server";
@@ -20,9 +20,9 @@ function renderCard() {
 describe("CameraCard", () => {
   it("opens the stream and shows the live badge once frames arrive", async () => {
     renderCard();
-    const img = await screen.findByAltText(ALT);
-    expect(img.getAttribute("src")).toMatch(/^\/api\/camera\/stream\?token=/);
     expect(screen.queryByText("EN DIRECT")).not.toBeInTheDocument();
+    const img = await screen.findByAltText(ALT);
+    await waitFor(() => expect(img.getAttribute("src")).toMatch(/^blob:/));
     fireEvent.load(img);
     expect(screen.getByText("EN DIRECT")).toBeInTheDocument();
   });
@@ -44,9 +44,14 @@ describe("CameraCard", () => {
   });
 
   it("releases the stream on unmount", async () => {
+    // MSW does not propagate the client's abort to the handler: watch the controller itself.
+    const abort = vi.spyOn(AbortController.prototype, "abort");
     const view = renderCard();
     const img = await screen.findByAltText(ALT);
+    await waitFor(() => expect(img.getAttribute("src")).toMatch(/^blob:/));
+    const before = abort.mock.calls.length;
     view.unmount();
-    expect(img.getAttribute("src")).toBe("");
+    expect(abort.mock.calls.length).toBeGreaterThan(before);
+    abort.mockRestore();
   });
 });

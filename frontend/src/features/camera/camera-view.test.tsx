@@ -3,7 +3,7 @@ import { http, HttpResponse } from "msw";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { REFRESH_TOKEN_KEY } from "@/features/auth/token-storage";
 import { renderWithProviders } from "@/test/render";
-import { VALID_REFRESH, server } from "@/test/server";
+import { fakeJpeg, mjpegResponse, server, VALID_REFRESH } from "@/test/server";
 import { CameraView } from "./camera-view";
 
 const ALT = "Flux vidéo de la caméra";
@@ -25,11 +25,19 @@ describe("CameraView", () => {
     expect(screen.queryByAltText(ALT)).not.toBeInTheDocument();
   });
 
-  it("opens the relayed stream with the access token", async () => {
+  it("opens the relayed stream with the access token and shows frames as blobs", async () => {
+    const tokens: (string | null)[] = [];
+    server.use(
+      http.get("/api/camera/stream", ({ request }) => {
+        tokens.push(request.headers.get("Authorization"));
+        return mjpegResponse([fakeJpeg("first")]);
+      }),
+    );
     renderAuthenticated();
-    const img = await screen.findByAltText(ALT);
-    expect(img.getAttribute("src")).toMatch(/^\/api\/camera\/stream\?token=[^&]+&t=\d+-1$/);
     expect(screen.getByRole("status")).toHaveTextContent("Connexion à la caméra…");
+    const img = await screen.findByAltText(ALT);
+    await waitFor(() => expect(img.getAttribute("src")).toMatch(/^blob:/));
+    expect(tokens[0]).toMatch(/^Bearer [^.]+\.[^.]+\.[^.]+$/);
   });
 
   it("shows the live badge and the viewer count once frames arrive", async () => {
@@ -44,23 +52,33 @@ describe("CameraView", () => {
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 
-  it("reconnects once with a fresh url after a burst of errors", async () => {
+  it("reconnects after the relay fails, waiting before each attempt", async () => {
+    let requests = 0;
+    server.use(
+      http.get("/api/camera/stream", () => {
+        requests += 1;
+        return requests === 1
+          ? new HttpResponse(null, { status: 503 })
+          : mjpegResponse([fakeJpeg("later")]);
+      }),
+    );
     renderAuthenticated();
-    const img = await screen.findByAltText(ALT);
-    fireEvent.load(img);
-    const first = img.getAttribute("src");
-    fireEvent.error(img);
-    fireEvent.error(img);
     expect(screen.getByRole("status")).toHaveTextContent("Connexion à la caméra…");
-    await waitFor(() => expect(img.getAttribute("src")).not.toBe(first), { timeout: 3000 });
-    expect(img.getAttribute("src")).toMatch(/&t=\d+-2$/);
-  }, 5000);
+    const img = await screen.findByAltText(ALT, {}, { timeout: 4000 });
+    await waitFor(() => expect(img.getAttribute("src")).toMatch(/^blob:/));
+    expect(requests).toBe(2);
+  }, 6000);
 
   it("releases the stream on unmount", async () => {
+    // MSW does not propagate the client's abort to the handler: watch the controller itself.
+    const abort = vi.spyOn(AbortController.prototype, "abort");
     const view = renderAuthenticated();
     const img = await screen.findByAltText(ALT);
+    await waitFor(() => expect(img.getAttribute("src")).toMatch(/^blob:/));
+    const before = abort.mock.calls.length;
     view.unmount();
-    expect(img.getAttribute("src")).toBe("");
+    expect(abort.mock.calls.length).toBeGreaterThan(before);
+    abort.mockRestore();
   });
 
   describe("fullscreen shortcut", () => {
