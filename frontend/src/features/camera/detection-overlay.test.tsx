@@ -33,6 +33,7 @@ function renderOverlay(snapshot: DetectionSnapshot | null) {
 const SNAPSHOT: DetectionSnapshot = {
   analyzed_at: "2026-10-06T12:00:00Z",
   has_intruder: true,
+  has_blacklisted: false,
   people: [
     {
       box: { x: 100, y: 50, width: 50, height: 100 },
@@ -40,6 +41,9 @@ const SNAPSHOT: DetectionSnapshot = {
       identity: null,
       identity_confidence: null,
       is_intruder: true,
+      blacklisted_as: null,
+      blacklist_confidence: null,
+      is_blacklisted: false,
     },
   ],
 };
@@ -70,6 +74,28 @@ describe("DetectionOverlay", () => {
     });
     expect(screen.getByText("kevan")).toBeInTheDocument();
     expect(screen.queryByText("INTRUS")).not.toBeInTheDocument();
+  });
+
+  it("labels a blacklisted person distinctly, even when also whitelisted", () => {
+    renderOverlay({
+      ...SNAPSHOT,
+      has_intruder: false,
+      has_blacklisted: true,
+      people: [
+        {
+          ...SNAPSHOT.people[0]!,
+          identity: "kevan",
+          identity_confidence: 0.9,
+          blacklisted_as: "marc",
+          blacklist_confidence: 0.95,
+          is_blacklisted: true,
+        },
+      ],
+    });
+    const label = screen.getByText("MÉCHANT : marc");
+    expect(label).toBeInTheDocument();
+    expect(screen.queryByText("kevan")).not.toBeInTheDocument();
+    expect(label.parentElement!.className).toContain("border-violet-500");
   });
 
   it("draws a detection that arrives while a frame decodes once that frame is in", () => {

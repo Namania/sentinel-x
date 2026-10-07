@@ -58,7 +58,8 @@ class Settings(BaseSettings):
 
     # Siren: the ESP32 buzzer follows a retained MQTT state message (see docs/.../siren spec).
     mqtt_buzzer_topic: str = "sentinel/cmd/buzzer"
-    buzzer_triggers: str = "gas,temperature:high"  # "metric" or "metric:low|high", comma-separated
+    # "metric" or "metric:low|high", comma-separated.
+    buzzer_triggers: str = "gas,temperature:high,intruder"
     buzzer_mute_minutes: int = Field(default=15, ge=1, le=240)
 
     def triggers(self) -> tuple[Trigger, ...]:

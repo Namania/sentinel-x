@@ -26,8 +26,10 @@ function containLayout(container: DOMRect, naturalWidth: number, naturalHeight: 
 }
 
 /** Bounding boxes from the vision worker, scaled onto the displayed (object-contain) image. */
+type OverlayPerson = { identity: string | null; blacklistedAs: string | null };
+
 export function DetectionOverlay({ snapshot, imageRef }: Props) {
-  const [rects, setRects] = useState<(Rect & { identity: string | null })[]>([]);
+  const [rects, setRects] = useState<(Rect & OverlayPerson)[]>([]);
 
   useEffect(() => {
     const image = imageRef.current;
@@ -55,6 +57,7 @@ export function DetectionOverlay({ snapshot, imageRef }: Props) {
           width: person.box.width * scale,
           height: person.box.height * scale,
           identity: person.identity,
+          blacklistedAs: person.blacklisted_as,
         })),
       );
     };
@@ -73,13 +76,24 @@ export function DetectionOverlay({ snapshot, imageRef }: Props) {
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden">
       {rects.map((rect, index) => {
+        const isBlacklisted = rect.blacklistedAs !== null;
         const isIntruder = rect.identity === null;
+        // Blacklisted outranks the plain intruder/known colouring: it is the one state that
+        // must stand out even for someone otherwise whitelisted.
+        const color = isBlacklisted ? "violet" : isIntruder ? "red" : "emerald";
+        const label = isBlacklisted
+          ? `MÉCHANT : ${rect.blacklistedAs}`
+          : isIntruder
+            ? "INTRUS"
+            : rect.identity;
         return (
           <div
             key={index}
             className={cn(
               "absolute rounded-sm border-2",
-              isIntruder ? "border-red-500" : "border-emerald-500",
+              color === "violet" && "border-violet-500",
+              color === "red" && "border-red-500",
+              color === "emerald" && "border-emerald-500",
             )}
             style={{ left: rect.left, top: rect.top, width: rect.width, height: rect.height }}
           >
@@ -88,10 +102,12 @@ export function DetectionOverlay({ snapshot, imageRef }: Props) {
                 "absolute left-0 rounded px-1.5 py-0.5 text-xs font-semibold whitespace-nowrap text-white",
                 // Above the box, or inside it when the box touches the top edge (clipped otherwise).
                 rect.top < LABEL_HEIGHT_PX ? "top-0" : "-top-6",
-                isIntruder ? "bg-red-500" : "bg-emerald-500",
+                color === "violet" && "bg-violet-500",
+                color === "red" && "bg-red-500",
+                color === "emerald" && "bg-emerald-500",
               )}
             >
-              {isIntruder ? "INTRUS" : rect.identity}
+              {label}
             </span>
           </div>
         );

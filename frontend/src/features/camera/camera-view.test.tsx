@@ -127,6 +127,39 @@ describe("CameraView", () => {
     expect(screen.queryByText("INTRUS DÉTECTÉ")).not.toBeInTheDocument();
   });
 
+  it("shows the blacklist badge when the vision worker reports a blacklisted face", async () => {
+    server.use(
+      sensorsLink.addEventListener("connection", ({ client }) => {
+        client.send(
+          JSON.stringify({
+            type: "vision.detection",
+            data: {
+              analyzed_at: "2026-10-06T12:00:00Z",
+              has_intruder: false,
+              has_blacklisted: true,
+              people: [
+                {
+                  box: { x: 10, y: 20, width: 30, height: 40 },
+                  confidence: 0.8,
+                  identity: null,
+                  identity_confidence: null,
+                  is_intruder: true,
+                  blacklisted_as: "marc",
+                  blacklist_confidence: 0.95,
+                  is_blacklisted: true,
+                },
+              ],
+            },
+          }),
+        );
+      }),
+    );
+    renderAuthenticated();
+    const img = await screen.findByAltText(ALT);
+    fireEvent.load(img);
+    expect(await screen.findByText("MÉCHANT DÉTECTÉ")).toBeInTheDocument();
+  });
+
   it("releases the stream on unmount", async () => {
     // MSW does not propagate the client's abort to the handler: watch the controller itself.
     const abort = vi.spyOn(AbortController.prototype, "abort");

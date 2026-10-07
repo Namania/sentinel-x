@@ -9,9 +9,11 @@ from uuid import UUID, uuid4
 
 from app.domain.sensor_reading import SensorReading
 
-Metric = Literal["temperature", "humidity", "gas"]
+Metric = Literal["temperature", "humidity", "gas", "intruder"]
 Direction = Literal["low", "high"]
 METRICS: tuple[Metric, ...] = ("temperature", "humidity", "gas")
+# Not in METRICS: it has no threshold/bounds (RecordReading._apply_alerts does not apply to it) -
+# the vision worker opens and resolves "intruder" alerts itself, one per blacklisted person seen.
 
 # Hysteresis: an open alert closes only once the value is this far back inside the bound.
 TEMPERATURE_MARGIN_C = 0.5

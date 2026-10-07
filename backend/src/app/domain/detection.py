@@ -16,16 +16,22 @@ class BoundingBox:
 
 @dataclass(frozen=True, slots=True)
 class PersonDetection:
-    """One person found by YOLO, optionally matched against the face whitelist."""
+    """One person found by YOLO, optionally matched against the face whitelist/blacklist."""
 
     box: BoundingBox
     confidence: float
     identity: str | None  # whitelisted person's name, or None if unrecognised
     identity_confidence: float | None = None
+    blacklisted_as: str | None = None  # blacklisted person's name, or None if not a match
+    blacklist_confidence: float | None = None
 
     @property
     def is_intruder(self) -> bool:
         return self.identity is None
+
+    @property
+    def is_blacklisted(self) -> bool:
+        return self.blacklisted_as is not None
 
 
 @dataclass(frozen=True, slots=True)
@@ -38,6 +44,10 @@ class DetectionSnapshot:
     @property
     def has_intruder(self) -> bool:
         return any(person.is_intruder for person in self.people)
+
+    @property
+    def has_blacklisted(self) -> bool:
+        return any(person.is_blacklisted for person in self.people)
 
     @classmethod
     def now(cls, people: tuple[PersonDetection, ...]) -> DetectionSnapshot:
