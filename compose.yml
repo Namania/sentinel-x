@@ -27,9 +27,12 @@ services:
       HOST_THERMAL_PATH: /host/thermal
       HOST_DISK_PATH: /host/rootfs-probe
     volumes:
-      # Host health for the dashboard, read-only. statvfs() on any path of the root partition
-      # returns that partition's totals, so one harmless file is enough: no need to expose /.
-      - /sys/class/thermal:/host/thermal:ro
+      # Host health for the dashboard, read-only.
+      # /sys/class/thermal only holds symlinks into /sys/devices, which the container does not
+      # have: mount the SoC temperature file itself (Docker resolves the link on the host side).
+      # statvfs() on any path of the root partition returns that partition's totals, so one
+      # harmless file is enough: no need to expose /.
+      - /sys/class/thermal/thermal_zone0/temp:/host/thermal/thermal_zone0/temp:ro
       - /etc/os-release:/host/rootfs-probe:ro
     depends_on:
       db:

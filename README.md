@@ -87,9 +87,10 @@ La santé du serveur (CPU, mémoire, disque, température du SoC, charge, uptime
 dans `/proc`, `/sys/class/thermal` et `statvfs`, toutes les 5 s (`SERVER_HEALTH_INTERVAL_S`),
 gardée 30 min en mémoire (rien en base) et diffusée sur le WebSocket
 (`{"type":"server.health","data":{…}}`) ; `GET /api/server/health` renvoie le dernier point et
-l'historique. `compose.yml` monte `/sys/class/thermal` et un fichier de la partition racine
-(`/etc/os-release`, `statvfs` suffit) en lecture seule dans le conteneur `api` (`HOST_THERMAL_PATH`,
-`HOST_DISK_PATH`) ; `/proc` du conteneur décrit déjà l'hôte. Sous
+l'historique. `compose.yml` monte le fichier `/sys/class/thermal/thermal_zone0/temp` (le dossier seul ne
+contient que des liens symboliques, inutilisables dans le conteneur) et un fichier de la partition
+racine (`/etc/os-release`, `statvfs` suffit) en lecture seule dans le conteneur `api`
+(`HOST_THERMAL_PATH`, `HOST_DISK_PATH`) ; `/proc` du conteneur décrit déjà l'hôte. Sous
 Docker Desktop (Mac) il n'y a pas de zone thermique : la température s'affiche « – ».
 `SERVER_HEALTH_ENABLED=false` désactive l'échantillonnage (c'est le cas dans les tests).
 

@@ -110,7 +110,7 @@ montrent déjà l'hôte (pas de lxcfs). Il faut monter l'hôte pour la températ
 ```yaml
 # compose.yml, service api
 volumes:
-  - /sys/class/thermal:/host/thermal:ro
+  - /sys/class/thermal/thermal_zone0/temp:/host/thermal/thermal_zone0/temp:ro
   - /etc/os-release:/host/rootfs-probe:ro
 environment:
   HOST_THERMAL_PATH: /host/thermal
@@ -119,6 +119,11 @@ environment:
 
 `statvfs()` renvoie les totaux de la partition qui porte le chemin, quel qu'il soit : monter un
 seul fichier anodin de la partition racine suffit, sans exposer `/` au conteneur.
+
+`/sys/class/thermal` ne contient que des liens symboliques vers `/sys/devices/virtual/thermal/…` ;
+monté seul, le lien ne se résout pas dans le conteneur et la température reste `None`. On monte
+donc le fichier `temp` lui-même : Docker résout le lien côté hôte. Sur le Pi 5, `thermal_zone0`
+est `cpu-thermal`.
 
 Sous Docker Desktop (Mac) ne partage ni `/` ni `/sys` avec les conteneurs : `compose.dev.yml` retire
 ces montages (`volumes: !override`) et remet `HOST_THERMAL_PATH` / `HOST_DISK_PATH` à leurs valeurs
