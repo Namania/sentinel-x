@@ -5,6 +5,7 @@ import { alertsFixture } from "./alerts";
 import { accessTokenExpiringIn, makeJwt } from "./jwt";
 import { bucketsFixture, DEVICE, makeReading, NOW_MS, readingsFixture } from "./sensors";
 import { healthFixture, SERVER_NOW_MS } from "./server-health";
+import { makeSiren } from "./siren";
 
 export const TEST_USER = {
   id: "11111111-1111-4111-8111-111111111111",
@@ -151,6 +152,17 @@ export const handlers = [
     isValidAccessToken(bearer(request))
       ? HttpResponse.json({ open: alertsFixture().filter((a) => a.resolved_at === null).length })
       : unauthenticated(),
+  ),
+  http.get("/api/alerts/siren", ({ request }) =>
+    isValidAccessToken(bearer(request)) ? HttpResponse.json(makeSiren()) : unauthenticated(),
+  ),
+  http.post("/api/alerts/siren/mute", ({ request }) =>
+    isValidAccessToken(bearer(request))
+      ? HttpResponse.json(makeSiren({ muted_until: "2026-10-07T07:15:00Z" }))
+      : unauthenticated(),
+  ),
+  http.delete("/api/alerts/siren/mute", ({ request }) =>
+    isValidAccessToken(bearer(request)) ? HttpResponse.json(makeSiren()) : unauthenticated(),
   ),
   http.get("/api/server/health", ({ request }) => {
     if (!isValidAccessToken(bearer(request))) return unauthenticated();
