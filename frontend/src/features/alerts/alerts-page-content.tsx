@@ -87,7 +87,7 @@ export function AlertsPageContent({ nowMs }: { nowMs?: number }) {
             value={String(summary.open)}
             hint={summary.open === 0 ? "Tout est dans les bornes" : undefined}
           />
-          <Stat label="Dernières 24 h" value={String(summary.last24h)} hint="alertes ouvertes" />
+          <Stat label="Dernières 24 h" value={String(summary.last24h)} hint="alertes déclenchées" />
           <Stat
             label="Métrique la plus fréquente"
             value={summary.topMetric ? METRIC_LABELS[summary.topMetric] : "–"}

@@ -1,4 +1,4 @@
-import { formatDuration, formatTime } from "@/lib/format-number";
+import { formatTime } from "@/lib/format-number";
 import { cn } from "@/lib/utils";
 import {
   boundLabel,
@@ -6,6 +6,7 @@ import {
   METRIC_COLORS,
   METRIC_LABELS,
   peakLabel,
+  sinceLabel,
   type Alert,
 } from "./alerts-api";
 import { MetricIcon } from "./metric-icon";
@@ -16,7 +17,7 @@ type Props = { alert: Alert; nowMs: number; size?: "sm" | "lg" };
 export function AlertTile({ alert, nowMs, size = "sm" }: Props) {
   const bound = boundLabel(alert);
   const excess = excessLabel(alert);
-  const since = formatDuration(nowMs - Date.parse(alert.opened_at));
+  const since = sinceLabel(nowMs - Date.parse(alert.opened_at));
   return (
     <li
       className={cn(

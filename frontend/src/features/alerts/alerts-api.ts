@@ -78,9 +78,14 @@ export function upsert(alerts: Alert[], alert: Alert): Alert[] {
   return sortAlerts([...others, alert]);
 }
 
+/** « moins d'une minute », then « 4 min »… — the page clock ticks every 30 s, seconds would lie. */
+export function sinceLabel(ms: number): string {
+  return ms < 60_000 ? "moins d'une minute" : formatDuration(ms);
+}
+
 export function durationLabel(alert: Alert, nowMs: number): string {
   const opened = Date.parse(alert.opened_at);
-  if (alert.resolved_at === null) return `depuis ${formatDuration(nowMs - opened)}`;
+  if (alert.resolved_at === null) return `depuis ${sinceLabel(nowMs - opened)}`;
   return formatDuration(Date.parse(alert.resolved_at) - opened);
 }
 

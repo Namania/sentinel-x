@@ -44,6 +44,8 @@ describe("alerts api helpers", () => {
   it("labels open alerts with « depuis » and resolved ones with their total duration", () => {
     const open = makeAlert({ opened_at: new Date(ALERTS_NOW_MS - 4 * 60_000).toISOString() });
     expect(durationLabel(open, ALERTS_NOW_MS)).toBe("depuis 4 min");
+    const fresh = makeAlert({ opened_at: new Date(ALERTS_NOW_MS - 20_000).toISOString() });
+    expect(durationLabel(fresh, ALERTS_NOW_MS)).toBe("depuis moins d'une minute");
     const resolved = makeAlert({
       opened_at: new Date(ALERTS_NOW_MS - 20 * 60_000).toISOString(),
       resolved_at: new Date(ALERTS_NOW_MS - 8 * 60_000).toISOString(),
