@@ -32,3 +32,6 @@ services:
     ports: !override
       - "8080:5173"
 
+  # No webcam on a laptop: the service only starts when the "hardware" profile is active.
+  webcam:
+    profiles: ["hardware"]

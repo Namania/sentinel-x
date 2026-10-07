@@ -52,6 +52,28 @@ services:
       - api
     restart: unless-stopped
 
+  # USB webcam plugged into the Pi, served as MJPEG by µStreamer. Point the API at it with
+  # CAMERA_STREAM_URL=http://webcam:8080/stream in backend/.env. WEBCAM_DEVICE, WEBCAM_FORMAT,
+  # WEBCAM_RESOLUTION and WEBCAM_FPS can be set in the shell or a root .env (defaults below).
+  webcam:
+    build: ./.docker/webcam
+    devices:
+      - "${WEBCAM_DEVICE:-/dev/video0}:/dev/video0"
+    # GID of the host "video" group (44 on Raspberry Pi OS): rootless Docker checks the device
+    # node against the host user's groups, so the user running Docker must be in it too.
+    group_add:
+      - "44"
+    command:
+      - --device=/dev/video0
+      - --host=0.0.0.0
+      - --port=8080
+      - --format=${WEBCAM_FORMAT:-MJPEG}
+      - --resolution=${WEBCAM_RESOLUTION:-1280x720}
+      - --desired-fps=${WEBCAM_FPS:-15}
+      - --drop-same-frames=30
+      - --workers=2
+    restart: unless-stopped
+
   mosquitto:
     container_name: mosquitto
     image: eclipse-mosquitto:2.0.22

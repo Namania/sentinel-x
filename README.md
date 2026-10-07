@@ -12,7 +12,7 @@ docker compose exec api create-user     # crée ton utilisateur (email + mot de 
 scripts/smoke.sh                        # create-user → login → me → ws ping
 ```
 
-Le seul fichier de configuration est `backend/.env` (copié de `backend/.env.example`) : il contient les valeurs `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` et le secret `JWT_SECRET` (32 caractères minimum). Il n'y a pas d'URL de base à renseigner : l'API construit l'URL de la base à partir des valeurs `POSTGRES_*`. La variable optionnelle `CAMERA_STREAM_URL` (ex. `http://192.168.1.50:81/stream`) pointe vers le flux MJPEG de la caméra ESP32.
+Le seul fichier de configuration est `backend/.env` (copié de `backend/.env.example`) : il contient les valeurs `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` et le secret `JWT_SECRET` (32 caractères minimum). Il n'y a pas d'URL de base à renseigner : l'API construit l'URL de la base à partir des valeurs `POSTGRES_*`. La variable optionnelle `CAMERA_STREAM_URL` pointe vers le flux MJPEG à relayer : la webcam USB du Pi (`http://webcam:8080/stream`, voir « Caméra ») ou une caméra ESP32 (`http://<ip>:81/stream`).
 
 - Front : `http://<hôte>:8080/` (connexion, puis dashboard et vue caméra sur `/camera`, navigation dans la barre latérale)
 - API via nginx : `http://<hôte>:8080/api/...` (par exemple `/api/health`)
@@ -51,6 +51,28 @@ uv run uvicorn --factory app.presentation.main:create_app --reload   # serveur l
 ```
 
 Les tests d'intégration utilisent la base `sentinel_test` créée par `.docker/postgres/init-test-db.sql`. Les identifiants viennent de `backend/.env` ; `TEST_POSTGRES_HOST`, `TEST_POSTGRES_PORT` et `TEST_POSTGRES_DB` permettent optionnellement de surcharger la cible des tests.
+
+## Caméra
+
+La caméra est une webcam USB branchée sur le Pi, servie en MJPEG par le service `webcam`
+(µStreamer, `.docker/webcam/Dockerfile`) sur `http://webcam:8080/stream`, que l'API relaie sur
+`/api/camera/stream` (une seule connexion vers la source, diffusion à tous les spectateurs). Dans
+`backend/.env` : `CAMERA_STREAM_URL=http://webcam:8080/stream`. Une caméra ESP32 reste possible en
+mettant son URL à la place.
+
+Réglages par variables d'environnement (shell ou `.env` à la racine) : `WEBCAM_DEVICE`
+(`/dev/video0`), `WEBCAM_FORMAT` (`MJPEG` ; `YUYV` si la webcam ne sort pas de MJPEG, µStreamer
+encode alors lui-même), `WEBCAM_RESOLUTION` (`1280x720`), `WEBCAM_FPS` (`15`). Sur le Pi :
+
+```sh
+v4l2-ctl --list-devices                      # quel /dev/videoN est la webcam
+v4l2-ctl -d /dev/video0 --list-formats-ext   # formats et résolutions (chercher MJPG)
+curl -s -N http://localhost:8080/api/camera/stream?token=… | head -c 300   # le flux relayé
+```
+
+Docker rootless : l'utilisateur qui lance Docker doit être dans le groupe `video`
+(`sudo usermod -aG video $USER`, puis se reconnecter) pour que le conteneur accède au périphérique.
+En dev sur un portable le service ne démarre pas (profil `hardware` dans `compose.dev.yml`).
 
 ## Capteurs
 
