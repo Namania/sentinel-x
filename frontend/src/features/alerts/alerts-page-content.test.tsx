@@ -40,36 +40,43 @@ function renderPage() {
 }
 
 describe("AlertsPageContent", () => {
-  it("lists every alert in a table, open ones first", async () => {
+  it("summarises, shows open alerts as tiles and the history as a timeline grouped by day", async () => {
     renderPage();
-    const table = await screen.findByRole("table");
-    const rows = within(table).getAllByRole("row").slice(1); // skip the header
-    expect(rows).toHaveLength(2);
-    expect(rows[0]).toHaveTextContent("Ouverte");
-    expect(rows[0]).toHaveTextContent("Température");
-    expect(rows[0]).toHaveTextContent("31,2 °C > 30 °C");
-    expect(rows[1]).toHaveTextContent("Résolue");
-    expect(rows[1]).toHaveTextContent("20 min");
+    expect(await screen.findByText("Ouvertes maintenant")).toBeInTheDocument();
+    const open = within(screen.getByRole("heading", { name: "En cours" }).parentElement!);
+    expect(open.getAllByRole("listitem")).toHaveLength(1);
+    expect(open.getByText("31,2 °C")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Historique" })).toBeInTheDocument();
+    const today = within(screen.getByRole("list", { name: "Alertes résolues, Aujourd'hui" }));
+    const rows = today.getAllByRole("listitem");
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toHaveTextContent("Humidité 74 % > 70 %");
+    expect(rows[0]).toHaveTextContent("esp-exterieur");
+    expect(rows[0]).toHaveTextContent("20 min");
   });
 
-  it("filters by state and by device", async () => {
+  it("filters by state, metric and device", async () => {
     const user = userEvent.setup();
     renderPage();
-    await screen.findByRole("table");
+    await screen.findByRole("heading", { name: "Historique" });
     await user.click(screen.getByRole("radio", { name: "Ouvertes" }));
-    expect(screen.getAllByRole("row")).toHaveLength(2);
+    expect(screen.queryByRole("heading", { name: "Historique" })).toBeNull();
+    expect(screen.getByRole("heading", { name: "En cours" })).toBeInTheDocument();
     await user.click(screen.getByRole("radio", { name: "Toutes" }));
+    await user.click(screen.getByRole("radio", { name: "Humidité" }));
+    expect(screen.queryByRole("heading", { name: "En cours" })).toBeNull();
+    expect(screen.getByRole("heading", { name: "Historique" })).toBeInTheDocument();
+    await user.click(screen.getByRole("radio", { name: "Toutes les métriques" }));
     await user.click(screen.getByRole("combobox", { name: "Appareil" }));
     await user.click(await screen.findByRole("option", { name: "esp-exterieur" }));
-    const rows = screen.getAllByRole("row").slice(1);
-    expect(rows).toHaveLength(1);
-    expect(rows[0]).toHaveTextContent("esp-exterieur");
+    expect(screen.queryByRole("heading", { name: "En cours" })).toBeNull();
+    expect(screen.getAllByRole("listitem")).toHaveLength(1);
   });
 
   it("says so when nothing matches", async () => {
     const user = userEvent.setup();
     renderPage();
-    await screen.findByRole("table");
+    await screen.findByRole("heading", { name: "Historique" });
     await user.click(screen.getByRole("combobox", { name: "Appareil" }));
     await user.click(await screen.findByRole("option", { name: "esp-exterieur" }));
     await user.click(screen.getByRole("radio", { name: "Ouvertes" }));
@@ -98,7 +105,7 @@ describe("AlertsPageContent", () => {
       [{ path: "/alertes", element: <AlertsPageContent nowMs={ALERTS_NOW_MS} /> }],
       "/alertes",
     );
-    await screen.findByRole("table");
+    await screen.findByRole("heading", { name: "Historique" });
     expect(
       screen.getByText("Seules les 500 alertes les plus récentes sont affichées."),
     ).toBeInTheDocument();

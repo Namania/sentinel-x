@@ -23,7 +23,7 @@ export const ALERTS_SUMMARY_PATH = "/alerts/summary";
 /** The API's maximum; the /alertes page says so when the history is longer. */
 export const ALERTS_LIMIT = 500;
 /** Resolved alerts shown on the dashboard card, after the open ones. */
-export const RESOLVED_SHOWN = 5;
+export const RESOLVED_SHOWN = 3;
 
 export function alertsPath(limit = ALERTS_LIMIT): string {
   return `${ALERTS_PATH}?limit=${limit}`;
@@ -82,4 +82,85 @@ export function durationLabel(alert: Alert, nowMs: number): string {
   const opened = Date.parse(alert.opened_at);
   if (alert.resolved_at === null) return `depuis ${formatDuration(nowMs - opened)}`;
   return formatDuration(Date.parse(alert.resolved_at) - opened);
+}
+
+export const METRIC_COLORS: Record<Metric, string> = {
+  temperature: "var(--metric-temperature)",
+  humidity: "var(--metric-humidity)",
+  gas: "var(--metric-gas)",
+};
+
+/** « 31,2 °C », « 78 % », « 1 800 mV » — the peak with its unit. */
+export function peakLabel(alert: Alert): string {
+  return `${formatNumber(alert.peak_value, DIGITS[alert.metric])} ${UNITS[alert.metric]}`;
+}
+
+/** « 30 °C » — the bound as the settings state it; null for a flag-only gas alert. */
+export function boundLabel(alert: Alert): string | null {
+  if (alert.metric === "gas" && alert.threshold === 0) return null;
+  const digits = Number.isInteger(alert.threshold) ? 0 : DIGITS[alert.metric];
+  return `${formatNumber(alert.threshold, digits)} ${UNITS[alert.metric]}`;
+}
+
+/** « +8 pts », « +3,0 °C », « −2 pts » — how far the peak went past the bound. */
+export function excessLabel(alert: Alert): string | null {
+  if (alert.metric === "gas" && alert.threshold === 0) return null;
+  const delta = alert.peak_value - alert.threshold;
+  const digits = DIGITS[alert.metric];
+  const unit = alert.metric === "humidity" ? "pts" : UNITS[alert.metric];
+  const sign = delta < 0 ? "−" : "+";
+  return `${sign}${formatNumber(Math.abs(delta), digits)} ${unit}`;
+}
+
+/** « 10:51 → 10:52 » for a resolved alert, « 10:51 → … » while open. */
+export function timeRange(alert: Alert, format: (ms: number) => string): string {
+  const opened = format(Date.parse(alert.opened_at));
+  return alert.resolved_at
+    ? `${opened} → ${format(Date.parse(alert.resolved_at))}`
+    : `${opened} → …`;
+}
+
+const DAY_LABEL = new Intl.DateTimeFormat("fr-FR", {
+  weekday: "short",
+  day: "numeric",
+  month: "short",
+});
+
+function localDay(ms: number): string {
+  const d = new Date(ms);
+  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+}
+
+/** « Aujourd'hui », « Hier », then « lun. 6 oct. » — for grouping a timeline by day. */
+export function dayLabel(ms: number, nowMs: number): string {
+  if (localDay(ms) === localDay(nowMs)) return "Aujourd'hui";
+  if (localDay(ms) === localDay(nowMs - 86_400_000)) return "Hier";
+  return DAY_LABEL.format(new Date(ms));
+}
+
+export type DayGroup = { label: string; alerts: Alert[] };
+
+/** Alerts grouped by the day they opened, newest day first; input order is kept inside a day. */
+export function groupByDay(alerts: Alert[], nowMs: number): DayGroup[] {
+  const groups: DayGroup[] = [];
+  for (const alert of alerts) {
+    const label = dayLabel(Date.parse(alert.opened_at), nowMs);
+    const last = groups.at(-1);
+    if (last && last.label === label) last.alerts.push(alert);
+    else groups.push({ label, alerts: [alert] });
+  }
+  return groups;
+}
+
+export type AlertSummary = { open: number; last24h: number; topMetric: Metric | null };
+
+export function summarize(alerts: Alert[], nowMs: number): AlertSummary {
+  const counts: Record<Metric, number> = { temperature: 0, humidity: 0, gas: 0 };
+  let last24h = 0;
+  for (const a of alerts) {
+    counts[a.metric] += 1;
+    if (nowMs - Date.parse(a.opened_at) <= 86_400_000) last24h += 1;
+  }
+  const top = (Object.keys(counts) as Metric[]).sort((a, b) => counts[b] - counts[a])[0]!;
+  return { open: alerts.filter(isOpen).length, last24h, topMetric: counts[top] > 0 ? top : null };
 }

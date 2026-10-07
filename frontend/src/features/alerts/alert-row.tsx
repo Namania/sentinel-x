@@ -1,35 +1,26 @@
-import { formatTime } from "@/lib/format-number";
-import { cn } from "@/lib/utils";
-import { describeAlert, durationLabel, isOpen, type Alert } from "./alerts-api";
+import { formatDuration, formatTime } from "@/lib/format-number";
+import { describeAlert, timeRange, type Alert } from "./alerts-api";
+import { MetricIcon } from "./metric-icon";
 
-/** One alert, as a list item: state word + dot, device, description, when, how long. */
-export function AlertRow({ alert, nowMs }: { alert: Alert; nowMs: number }) {
-  const open = isOpen(alert);
+/** A resolved alert, one compact line: icon, what happened, where, when and for how long. */
+export function AlertRow({ alert }: { alert: Alert }) {
+  const duration = alert.resolved_at
+    ? formatDuration(Date.parse(alert.resolved_at) - Date.parse(alert.opened_at))
+    : null;
   return (
-    <li className="flex flex-wrap items-center gap-x-3 gap-y-1 py-1.5 text-sm">
-      <span className="flex w-20 shrink-0 items-center gap-1.5">
-        <span
-          aria-hidden="true"
-          className={cn(
-            "inline-block size-2 rounded-full",
-            open ? "bg-destructive" : "bg-muted-foreground/60",
-          )}
-        />
-        <span
-          className={cn("text-xs font-medium", open ? "text-destructive" : "text-muted-foreground")}
-        >
-          {open ? "Ouverte" : "Résolue"}
-        </span>
+    <li className="flex items-center gap-3 py-2 text-sm">
+      <MetricIcon metric={alert.metric} className="size-7" />
+      <span className="min-w-0 flex-1 truncate">
+        <span className="text-muted-foreground">{describeAlert(alert)}</span>
       </span>
-      <span className="text-muted-foreground w-28 shrink-0 truncate text-xs">
+      <span className="text-muted-foreground hidden w-28 shrink-0 truncate text-xs sm:inline">
         {alert.device_id}
       </span>
-      <span className={cn("flex-1 tabular-nums", !open && "text-muted-foreground")}>
-        {describeAlert(alert)}
+      <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
+        {timeRange(alert, formatTime)}
+        {duration ? ` · ${duration}` : ""}
       </span>
-      <span className="text-muted-foreground text-xs tabular-nums">
-        à {formatTime(Date.parse(alert.opened_at))} · {durationLabel(alert, nowMs)}
-      </span>
+      <span className="sr-only">Résolue</span>
     </li>
   );
 }

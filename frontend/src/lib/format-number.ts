@@ -37,10 +37,10 @@ export function formatTime(ms: number): string {
   return Number.isFinite(ms) ? TIME.format(new Date(ms)) : "–";
 }
 
-/** « 4 min », « 2 h 05 », « 1 j 3 h » — or « moins d'une minute ». */
+/** « 40 s », « 4 min », « 2 h 05 », « 1 j 3 h ». */
 export function formatDuration(ms: number): string {
   const minutes = Math.floor(ms / 60_000);
-  if (minutes < 1) return "moins d'une minute";
+  if (minutes < 1) return `${Math.max(0, Math.floor(ms / 1000))} s`;
   const hours = Math.floor(minutes / 60);
   if (hours < 1) return `${minutes} min`;
   const days = Math.floor(hours / 24);

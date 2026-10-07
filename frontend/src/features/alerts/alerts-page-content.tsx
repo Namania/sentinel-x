@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -8,33 +9,40 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useAuth } from "@/features/auth/use-auth";
 import { DEVICES_PATH, type Device } from "@/features/metrics/metrics-api";
-import { formatTime } from "@/lib/format-number";
 import { useNow } from "@/lib/use-now";
-import { cn } from "@/lib/utils";
+import { AlertRow } from "./alert-row";
+import { AlertTile } from "./alert-tile";
 import {
   ALERTS_LIMIT,
-  durationLabel,
+  groupByDay,
   isOpen,
+  METRIC_COLORS,
   METRIC_LABELS,
-  valueAgainstBound,
+  summarize,
+  type Metric,
 } from "./alerts-api";
 import { useAlerts } from "./use-alerts";
 
 type StateFilter = "all" | "open" | "resolved";
-const ALL_DEVICES = "__all__";
+const ALL = "__all__";
+const METRICS: Metric[] = ["temperature", "humidity", "gas"];
 
-/** The /alertes page: filters by state and device, full history in a table. */
+function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {
+  return (
+    <Card>
+      <CardContent className="py-4">
+        <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">{label}</p>
+        <p className="mt-1 text-2xl font-semibold tabular-nums">{value}</p>
+        {hint && <p className="text-muted-foreground text-xs">{hint}</p>}
+      </CardContent>
+    </Card>
+  );
+}
+
+/** The /alertes page: a summary, filters, open alerts as tiles, the history as a day timeline. */
 export function AlertsPageContent({ nowMs }: { nowMs?: number }) {
   const { authFetch } = useAuth();
   const { status, alerts } = useAlerts();
@@ -42,7 +50,8 @@ export function AlertsPageContent({ nowMs }: { nowMs?: number }) {
   const now = nowMs ?? tick;
   const [devices, setDevices] = useState<Device[]>([]);
   const [state, setState] = useState<StateFilter>("all");
-  const [device, setDevice] = useState<string>(ALL_DEVICES);
+  const [metric, setMetric] = useState<Metric | typeof ALL>(ALL);
+  const [device, setDevice] = useState<string>(ALL);
 
   useEffect(() => {
     let cancelled = false;
@@ -58,15 +67,35 @@ export function AlertsPageContent({ nowMs }: { nowMs?: number }) {
     };
   }, [authFetch]);
 
-  const rows = alerts
-    .filter((a) => state === "all" || (state === "open") === isOpen(a))
-    .filter((a) => device === ALL_DEVICES || a.device_id === device);
+  const filtered = alerts
+    .filter((a) => metric === ALL || a.metric === metric)
+    .filter((a) => device === ALL || a.device_id === device);
+  const open = state === "resolved" ? [] : filtered.filter(isOpen);
+  const resolved = state === "open" ? [] : filtered.filter((a) => !isOpen(a));
+  const summary = summarize(alerts, now);
 
   return (
-    <section aria-labelledby="alerts-title" className="space-y-4">
+    <section aria-labelledby="alerts-title" className="space-y-5">
       <h1 id="alerts-title" className="text-2xl font-semibold">
         Alertes
       </h1>
+
+      {status === "ready" && (
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Stat
+            label="Ouvertes maintenant"
+            value={String(summary.open)}
+            hint={summary.open === 0 ? "Tout est dans les bornes" : undefined}
+          />
+          <Stat label="Dernières 24 h" value={String(summary.last24h)} hint="alertes ouvertes" />
+          <Stat
+            label="Métrique la plus fréquente"
+            value={summary.topMetric ? METRIC_LABELS[summary.topMetric] : "–"}
+            hint={`sur ${alerts.length} ${alerts.length > 1 ? "alertes" : "alerte"} chargées`}
+          />
+        </div>
+      )}
+
       <div className="flex flex-wrap items-center gap-4">
         <ToggleGroup
           type="single"
@@ -79,6 +108,25 @@ export function AlertsPageContent({ nowMs }: { nowMs?: number }) {
           <ToggleGroupItem value="open">Ouvertes</ToggleGroupItem>
           <ToggleGroupItem value="resolved">Résolues</ToggleGroupItem>
         </ToggleGroup>
+        <ToggleGroup
+          type="single"
+          value={metric}
+          onValueChange={(v) => v && setMetric(v as Metric | typeof ALL)}
+          aria-label="Métrique"
+          variant="outline"
+        >
+          <ToggleGroupItem value={ALL}>Toutes les métriques</ToggleGroupItem>
+          {METRICS.map((m) => (
+            <ToggleGroupItem key={m} value={m} className="gap-1.5">
+              <span
+                aria-hidden="true"
+                className="inline-block size-2 rounded-full"
+                style={{ background: METRIC_COLORS[m] }}
+              />
+              {METRIC_LABELS[m]}
+            </ToggleGroupItem>
+          ))}
+        </ToggleGroup>
         <div className="flex items-center gap-2">
           <Label htmlFor="alerts-device">Appareil</Label>
           <Select value={device} onValueChange={setDevice}>
@@ -86,7 +134,7 @@ export function AlertsPageContent({ nowMs }: { nowMs?: number }) {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value={ALL_DEVICES}>Tous</SelectItem>
+              <SelectItem value={ALL}>Tous</SelectItem>
               {devices.map((d) => (
                 <SelectItem key={d.device_id} value={d.device_id}>
                   {d.device_id}
@@ -96,11 +144,12 @@ export function AlertsPageContent({ nowMs }: { nowMs?: number }) {
           </Select>
         </div>
       </div>
+
       {status === "loading" && (
         <Skeleton role="status" aria-label="Chargement des alertes" className="h-40 w-full" />
       )}
       {status === "error" && <p className="text-destructive">Alertes indisponibles.</p>}
-      {status === "ready" && rows.length === 0 && (
+      {status === "ready" && open.length === 0 && resolved.length === 0 && (
         <p className="text-muted-foreground">Aucune alerte</p>
       )}
       {status === "ready" && alerts.length >= ALERTS_LIMIT && (
@@ -108,56 +157,46 @@ export function AlertsPageContent({ nowMs }: { nowMs?: number }) {
           Seules les {ALERTS_LIMIT} alertes les plus récentes sont affichées.
         </p>
       )}
-      {status === "ready" && rows.length > 0 && (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>État</TableHead>
-              <TableHead>Appareil</TableHead>
-              <TableHead>Métrique</TableHead>
-              <TableHead>Valeur / borne</TableHead>
-              <TableHead>Ouverte à</TableHead>
-              <TableHead>Résolue à</TableHead>
-              <TableHead>Durée</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((a) => {
-              const open = isOpen(a);
-              return (
-                <TableRow key={a.id}>
-                  <TableCell>
-                    <span
-                      className={cn(
-                        "flex items-center gap-1.5 text-xs font-medium",
-                        open ? "text-destructive" : "text-muted-foreground",
-                      )}
-                    >
-                      <span
-                        aria-hidden="true"
-                        className={cn(
-                          "inline-block size-2 rounded-full",
-                          open ? "bg-destructive" : "bg-muted-foreground/60",
-                        )}
-                      />
-                      {open ? "Ouverte" : "Résolue"}
-                    </span>
-                  </TableCell>
-                  <TableCell>{a.device_id}</TableCell>
-                  <TableCell>{METRIC_LABELS[a.metric]}</TableCell>
-                  <TableCell className="tabular-nums">{valueAgainstBound(a)}</TableCell>
-                  <TableCell className="tabular-nums">
-                    {formatTime(Date.parse(a.opened_at))}
-                  </TableCell>
-                  <TableCell className="tabular-nums">
-                    {a.resolved_at ? formatTime(Date.parse(a.resolved_at)) : "–"}
-                  </TableCell>
-                  <TableCell className="tabular-nums">{durationLabel(a, now)}</TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
+
+      {open.length > 0 && (
+        <section aria-labelledby="open-alerts-title" className="space-y-2">
+          <h2 id="open-alerts-title" className="text-sm font-medium">
+            En cours
+          </h2>
+          <ul className="space-y-2">
+            {open.map((a) => (
+              <AlertTile key={a.id} alert={a} nowMs={now} size="lg" />
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {resolved.length > 0 && (
+        <section aria-labelledby="history-title" className="space-y-4">
+          <h2 id="history-title" className="text-sm font-medium">
+            Historique
+          </h2>
+          {groupByDay(resolved, now).map((group) => (
+            <div key={group.label} className="relative pl-5">
+              <span
+                aria-hidden="true"
+                className="bg-border absolute top-2 bottom-2 left-1.5 w-px"
+              />
+              <h3 className="text-muted-foreground mb-1 text-xs font-medium tracking-wide uppercase">
+                <span
+                  aria-hidden="true"
+                  className="bg-muted-foreground/60 absolute top-1.5 left-0 size-3 rounded-full ring-4 ring-[var(--background)]"
+                />
+                {group.label}
+              </h3>
+              <ul className="divide-y" aria-label={`Alertes résolues, ${group.label}`}>
+                {group.alerts.map((a) => (
+                  <AlertRow key={a.id} alert={a} />
+                ))}
+              </ul>
+            </div>
+          ))}
+        </section>
       )}
     </section>
   );
