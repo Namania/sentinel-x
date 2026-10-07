@@ -15,35 +15,15 @@ dependencies = [
     "pyjwt>=2.9",
     "httpx>=0.27",
     "aiomqtt>=2.5.1",
-]
-
-[project.optional-dependencies]
-# Person detection (YOLOv8n, exported to NCNN for the Pi) on the camera stream, i.e. "is anyone
-# there?" - no identification. Installed when VISION_ENABLED=true is used.
-# Pulls in PyTorch (ultralytics' backend): expect a sizeable image on the Pi, but no TensorFlow.
-vision = [
-    "ultralytics>=8.3",
+    # Vision: YOLOv8n (people), YuNet + SFace (faces) as ONNX models run by OpenCV alone - no
+    # PyTorch, no TensorFlow. The models themselves are fetched when the Docker image is built.
     "opencv-python-headless>=4.10",
     "numpy>=1.26",
-    "ncnn>=1.0.20240410",
-]
-# Adds face whitelist matching (DeepFace/ArcFace): "who is it?" on top of "is anyone there?".
-# Installed when VISION_IDENTIFY_FACES=true is also used.
-#
-# Heavy on top of `vision`: deepface pulls in TensorFlow (it has no lighter backend on PyPI
-# despite what its README suggests) - 500MB+ extra, with no GPU to make use of on the Pi. Keep
-# this off unless the known-faces whitelist is actually needed.
-vision-identify = [
-    "sentinel-backend[vision]",
-    "deepface>=0.0.93",
-    # TensorFlow >= 2.16 ships Keras 3; deepface still needs the Keras 2 API from tf-keras.
-    "tf-keras>=2.16",
 ]
 
 [project.scripts]
 create-user = "app.presentation.cli:create_user_command"
 simulate-sensors = "app.presentation.simulate:simulate_sensors_command"
-yolo-export-ncnn = "app.infrastructure.vision.yolo_export_ncnn:export_ncnn_command"
 
 [dependency-groups]
 dev = [

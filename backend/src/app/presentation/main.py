@@ -152,21 +152,31 @@ def _start_vision_worker(app: FastAPI, settings: Settings) -> asyncio.Task[None]
         logger.warning("VISION_ENABLED is set but no camera is configured; vision worker disabled")
         return None
 
-    # Imported lazily: ultralytics (and, if identification is on, deepface) are heavy and only
-    # needed when vision is enabled.
+    import cv2
+
     from app.infrastructure.vision.detection_worker import DetectionWorker
-    from app.infrastructure.vision.yolo_face_analyzer import YoloFaceAnalyzer, load_person_model
+    from app.infrastructure.vision.face_whitelist import FaceEncoder, FaceWhitelist
+    from app.infrastructure.vision.light_analyzer import LightVisionAnalyzer
+    from app.infrastructure.vision.person_detector import PersonDetector
 
-    # YOLO before the whitelist: PyTorch loaded after TensorFlow segfaults the process.
-    model = load_person_model()
-    whitelist = None
-    if settings.vision_identify_faces:
-        # deepface (and the TensorFlow it requires) is only imported in this branch.
-        from app.infrastructure.vision.face_whitelist import FaceWhitelist
+    models_dir = Path(settings.vision_models_dir)
+    cv2.setNumThreads(settings.vision_threads)
+    try:
+        detector = PersonDetector(models_dir)
+        faces = None
+        if settings.vision_identify_faces:
+            encoder = FaceEncoder(models_dir)
+            faces = (encoder, FaceWhitelist.load(Path(settings.vision_known_faces_dir), encoder))
+    except cv2.error:
+        logger.exception(
+            "vision models missing or unreadable in %s (the Docker image provides them); "
+            "vision worker disabled",
+            models_dir,
+        )
+        return None
 
-        whitelist = FaceWhitelist.load(Path(settings.vision_known_faces_dir))
-
-    analyzer = YoloFaceAnalyzer(model, whitelist)
+    whitelist = faces[1] if faces is not None else None
+    analyzer = LightVisionAnalyzer(detector, faces)
     worker = DetectionWorker(
         frames=camera_relay.frames(),
         analyzer=analyzer,

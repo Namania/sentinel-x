@@ -34,6 +34,8 @@ services:
       # harmless file is enough: no need to expose /.
       - /sys/class/thermal/thermal_zone0/temp:/host/thermal/thermal_zone0/temp:ro
       - /etc/os-release:/host/rootfs-probe:ro
+      # Reference photos of the face whitelist (VISION_IDENTIFY_FACES), read at API startup.
+      - ./backend/data/known_faces:/app/data/known_faces:ro
     depends_on:
       db:
         condition: service_healthy

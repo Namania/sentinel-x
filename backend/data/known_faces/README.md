@@ -10,7 +10,8 @@ shown in the dashboard: `kevan.jpg`, `kevan1.jpg` and `kevan_2.jpg` are all "kev
 - Loaded once at API startup (`VISION_IDENTIFY_FACES=true`); restart the API after adding or
   changing a photo.
 - Anyone whose face doesn't match a photo here is reported as an intruder, and so is anyone
-  whose face can't be read (turned away, in profile, too far).
+  whose face can't be read (turned away, in profile, too far) before being recognised once.
+  Once recognised, a person keeps their name while they are followed, even turned away.
 
 This directory's photos are personal data - do not commit real teammate photos to a public
 repository. Add real photos locally or via `.env`/deploy-time file transfer instead.

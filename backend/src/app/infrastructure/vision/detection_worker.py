@@ -1,7 +1,7 @@
 """Background worker: pulls frames from the camera relay, runs vision analysis, broadcasts hits.
 
 It is just another consumer of `CameraRelay.frames()` - the same fan-out the HTTP viewers use -
-so it does not open a second connection to the camera. YOLO + DeepFace are synchronous and
+so it does not open a second connection to the camera. The models are synchronous and
 CPU-bound, so each analysis runs in a worker thread (`asyncio.to_thread`) to avoid blocking the
 event loop; the throttle keeps a slow Raspberry Pi from falling behind the live video.
 """

@@ -1,3 +1,26 @@
+# syntax=docker/dockerfile:1.7
+
+# Vision models, prepared once at build time so the API never downloads anything when it starts.
+# They are ONNX files: the same files run on a PC and on the Raspberry Pi, through OpenCV alone.
+FROM python:3.12-slim AS models
+WORKDIR /models
+# Ultralytics (and the CPU-only PyTorch it needs) only live in this stage, to convert YOLOv8n to
+# ONNX at 320px; the final image keeps the converted file, not the toolchain.
+RUN pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu torch torchvision \
+    && pip install --no-cache-dir "ultralytics==8.4.174" "onnx>=1.12" onnxslim \
+    && pip uninstall -y opencv-python \
+    && pip install --no-cache-dir opencv-python-headless
+# (ultralytics pulls the desktop OpenCV, which needs X11 libraries the slim image lacks.)
+RUN python -c "from ultralytics import YOLO; YOLO('yolov8n.pt').export(format='onnx', imgsz=320, opset=12, simplify=True)" \
+    && rm yolov8n.pt
+# Face detection (YuNet) and recognition (SFace) from the OpenCV model zoo, checked by hash.
+ADD --checksum=sha256:8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4 \
+    https://github.com/opencv/opencv_zoo/raw/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx \
+    /models/face_detection_yunet_2023mar.onnx
+ADD --checksum=sha256:0ba9fbfa01b5270c96627c4ef784da859931e02f04419c829e83484087c34e79 \
+    https://github.com/opencv/opencv_zoo/raw/main/models/face_recognition_sface/face_recognition_sface_2021dec.onnx \
+    /models/face_recognition_sface_2021dec.onnx
+
 FROM python:3.12-slim AS base
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
@@ -9,37 +32,19 @@ ENV UV_COMPILE_BYTECODE=1 \
 
 WORKDIR /app
 
-# DeepFace pulls in the desktop opencv-python next to opencv-python-headless; it overwrites the
-# shared cv2 package and needs X11/GL libraries that the slim image does not ship.
-ARG VISION_IDENTIFY=false
-RUN if [ "$VISION_IDENTIFY" = "true" ]; then \
-      apt-get update && apt-get install -y --no-install-recommends libxcb1 libgl1 libglib2.0-0 \
-      && rm -rf /var/lib/apt/lists/*; \
-    fi
-
 RUN useradd --create-home app && chown app:app /app
 USER app
 
-# Set to "true" to also install YOLO (person detection). Heavy (torch, opencv...): off by
-# default so the ordinary API image stays small and fast to build.
-ARG VISION=false
-# Set to "true" (with VISION=true) to also install DeepFace (face whitelist identification).
-# Extra heavy on top of VISION: pulls in TensorFlow. Off by default even when VISION=true.
-ARG VISION_IDENTIFY=false
-
 COPY --chown=app:app pyproject.toml uv.lock ./
 RUN --mount=type=cache,target=/root/.cache/uv,uid=1000,gid=1000 \
-    if [ "$VISION_IDENTIFY" = "true" ]; then uv sync --frozen --no-dev --no-install-project --extra vision-identify; \
-    elif [ "$VISION" = "true" ]; then uv sync --frozen --no-dev --no-install-project --extra vision; \
-    else uv sync --frozen --no-dev --no-install-project; fi
+    uv sync --frozen --no-dev --no-install-project
 
+COPY --chown=app:app --from=models /models/*.onnx ./models/
 COPY --chown=app:app src ./src
 COPY --chown=app:app alembic.ini ./
 COPY --chown=app:app alembic ./alembic
 RUN --mount=type=cache,target=/root/.cache/uv,uid=1000,gid=1000 \
-    if [ "$VISION_IDENTIFY" = "true" ]; then uv sync --frozen --no-dev --extra vision-identify; \
-    elif [ "$VISION" = "true" ]; then uv sync --frozen --no-dev --extra vision; \
-    else uv sync --frozen --no-dev; fi
+    uv sync --frozen --no-dev
 
 EXPOSE 8000
 

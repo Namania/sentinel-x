@@ -1,8 +1,6 @@
 import asyncio
 from collections.abc import AsyncIterator
 
-import pytest
-
 from app.domain.detection import BoundingBox, PersonDetection
 from app.infrastructure.vision.detection_worker import DetectionWorker
 from tests.unit.fakes import RecordingBroadcaster

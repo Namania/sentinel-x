@@ -13,6 +13,7 @@ services:
     volumes: !override
       - ./backend/src:/app/src
       - ./backend/alembic:/app/alembic
+      - ./backend/data/known_faces:/app/data/known_faces:ro
     ports:
       - "127.0.0.1:8000:8000"
 
