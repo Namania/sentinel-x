@@ -173,7 +173,6 @@ export function CameraStream({
       {src && (
         <img
           ref={(element) => {
-            if (element) lastImg.current = element;
             if (imageRef) imageRef.current = element;
           }}
           src={src}

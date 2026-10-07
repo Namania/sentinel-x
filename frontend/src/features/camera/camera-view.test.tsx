@@ -62,6 +62,13 @@ describe("CameraView", () => {
           : mjpegResponse([fakeJpeg("later")]);
       }),
     );
+    renderAuthenticated();
+    expect(screen.getByRole("status")).toHaveTextContent("Connexion à la caméra…");
+    const img = await screen.findByAltText(ALT, {}, { timeout: 4000 });
+    await waitFor(() => expect(img.getAttribute("src")).toMatch(/^blob:/));
+    expect(requests).toBe(2);
+  }, 6000);
+
   it("shows the intruder badge when the vision worker reports an unrecognised face", async () => {
     server.use(
       sensorsLink.addEventListener("connection", ({ client }) => {
@@ -119,14 +126,6 @@ describe("CameraView", () => {
     await screen.findByText("EN DIRECT");
     expect(screen.queryByText("INTRUS DÉTECTÉ")).not.toBeInTheDocument();
   });
-
-  it("reconnects once with a fresh url after a burst of errors", async () => {
-    renderAuthenticated();
-    expect(screen.getByRole("status")).toHaveTextContent("Connexion à la caméra…");
-    const img = await screen.findByAltText(ALT, {}, { timeout: 4000 });
-    await waitFor(() => expect(img.getAttribute("src")).toMatch(/^blob:/));
-    expect(requests).toBe(2);
-  }, 6000);
 
   it("releases the stream on unmount", async () => {
     // MSW does not propagate the client's abort to the handler: watch the controller itself.

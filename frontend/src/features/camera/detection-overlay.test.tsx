@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import { createRef } from "react";
 import { describe, expect, it } from "vitest";
 import { DetectionOverlay } from "./detection-overlay";
@@ -70,5 +70,26 @@ describe("DetectionOverlay", () => {
     });
     expect(screen.getByText("kevan")).toBeInTheDocument();
     expect(screen.queryByText("INTRUS")).not.toBeInTheDocument();
+  });
+
+  it("draws a detection that arrives while a frame decodes once that frame is in", () => {
+    // The stream swaps the <img> source many times a second; mid-swap its size reads 0.
+    const imageRef = createRef<HTMLImageElement>();
+    render(
+      <>
+        <img ref={imageRef} alt="" />
+        <DetectionOverlay snapshot={SNAPSHOT} imageRef={imageRef} />
+      </>,
+    );
+    expect(screen.queryByText("INTRUS")).not.toBeInTheDocument();
+
+    const image = imageRef.current!;
+    Object.defineProperty(image, "naturalWidth", { value: 640, configurable: true });
+    Object.defineProperty(image, "naturalHeight", { value: 480, configurable: true });
+    image.getBoundingClientRect = () => ({ width: 800, height: 300, left: 0, top: 0 }) as DOMRect;
+    act(() => {
+      image.dispatchEvent(new Event("load"));
+    });
+    expect(screen.getByText("INTRUS")).toBeInTheDocument();
   });
 });

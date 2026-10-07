@@ -10,6 +10,9 @@ type Props = {
 
 type Rect = { left: number; top: number; width: number; height: number };
 
+/** Room the name label needs above a box (`-top-6` = 24px). */
+const LABEL_HEIGHT_PX = 24;
+
 /** How the source frame (object-contain) maps onto the element's rendered box. */
 function containLayout(container: DOMRect, naturalWidth: number, naturalHeight: number) {
   const scale = Math.min(container.width / naturalWidth, container.height / naturalHeight);
@@ -34,8 +37,10 @@ export function DetectionOverlay({ snapshot, imageRef }: Props) {
     }
 
     const recompute = () => {
+      // The stream swaps the <img> source ~10 times a second, and the size reads 0 while a frame
+      // decodes: keep the current boxes and measure again once that frame is in.
       if (!image.naturalWidth || !image.naturalHeight) {
-        setRects([]);
+        image.addEventListener("load", recompute, { once: true });
         return;
       }
       const { scale, offsetX, offsetY } = containLayout(
@@ -57,7 +62,10 @@ export function DetectionOverlay({ snapshot, imageRef }: Props) {
     recompute();
     // Re-measure on resize: the container (and so the image's rendered box) can change size.
     window.addEventListener("resize", recompute);
-    return () => window.removeEventListener("resize", recompute);
+    return () => {
+      window.removeEventListener("resize", recompute);
+      image.removeEventListener("load", recompute);
+    };
   }, [snapshot, imageRef]);
 
   if (rects.length === 0) return null;
@@ -77,7 +85,9 @@ export function DetectionOverlay({ snapshot, imageRef }: Props) {
           >
             <span
               className={cn(
-                "absolute -top-6 left-0 rounded px-1.5 py-0.5 text-xs font-semibold whitespace-nowrap text-white",
+                "absolute left-0 rounded px-1.5 py-0.5 text-xs font-semibold whitespace-nowrap text-white",
+                // Above the box, or inside it when the box touches the top edge (clipped otherwise).
+                rect.top < LABEL_HEIGHT_PX ? "top-0" : "-top-6",
                 isIntruder ? "bg-red-500" : "bg-emerald-500",
               )}
             >
