@@ -1,4 +1,5 @@
 import { AlertsCard } from "@/features/alerts/alerts-card";
+import { SirenBar } from "@/features/alerts/siren-bar";
 import { useAlerts } from "@/features/alerts/use-alerts";
 import { CameraCard } from "@/features/camera/camera-card";
 import { MetricsSection } from "@/features/metrics/metrics-section";
@@ -18,6 +19,8 @@ export function DashboardPage() {
         <CameraCard className="lg:col-span-2" />
         <ServerHealthCard />
       </div>
+      {/* Outside the card: the card is one link, and a link cannot hold the mute button. */}
+      <SirenBar />
       <AlertsCard status={alerts.status} alerts={alerts.alerts} />
       <MetricsSection openAlerts={alerts.open} />
     </div>

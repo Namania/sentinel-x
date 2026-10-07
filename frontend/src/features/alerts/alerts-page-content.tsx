@@ -15,6 +15,7 @@ import { DEVICES_PATH, type Device } from "@/features/metrics/metrics-api";
 import { useNow } from "@/lib/use-now";
 import { AlertRow } from "./alert-row";
 import { AlertTile } from "./alert-tile";
+import { SirenBar } from "./siren-bar";
 import {
   ALERTS_LIMIT,
   groupByDay,
@@ -95,6 +96,8 @@ export function AlertsPageContent({ nowMs }: { nowMs?: number }) {
           />
         </div>
       )}
+
+      <SirenBar />
 
       <div className="flex flex-wrap items-center gap-4">
         <ToggleGroup

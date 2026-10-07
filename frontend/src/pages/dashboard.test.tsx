@@ -54,4 +54,10 @@ describe("Dashboard (wall screen)", () => {
     await new Promise((r) => setTimeout(r, 300));
     expect(connections).toBe(1);
   });
+
+  it("shows the siren bar outside the alerts card link", async () => {
+    renderDashboard();
+    const bar = await screen.findByRole("status", { name: "Sirène" });
+    expect(bar.closest("a")).toBeNull();
+  });
 });
