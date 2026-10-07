@@ -8,6 +8,7 @@ import {
   type ChartConfig,
 } from "@/components/ui/chart";
 import { tooltipTimeLabel } from "@/features/metrics/tooltip-label";
+import { valueFormatter } from "@/features/metrics/tooltip-value";
 import { formatNumber, formatTime } from "@/lib/format-number";
 import { toServerPoints, type ServerHealth, type ServerPoint } from "./server-api";
 
@@ -52,7 +53,14 @@ export function CpuChart({ points }: { points: ServerPoint[] }) {
           <CartesianGrid vertical={false} />
           <TimeAxis />
           <YAxis domain={[0, 100]} width={36} {...axisProps} />
-          <ChartTooltip content={<ChartTooltipContent labelFormatter={tooltipTimeLabel} />} />
+          <ChartTooltip
+            content={
+              <ChartTooltipContent
+                labelFormatter={tooltipTimeLabel}
+                formatter={valueFormatter({ label: "CPU", digits: 0, unit: "%" })}
+              />
+            }
+          />
           <Area
             dataKey="cpu"
             type="monotone"
@@ -87,7 +95,14 @@ export function MemoryChart({ points, totalGib }: { points: ServerPoint[]; total
             tickFormatter={(v) => formatNumber(Number(v), 0)}
             {...axisProps}
           />
-          <ChartTooltip content={<ChartTooltipContent labelFormatter={tooltipTimeLabel} />} />
+          <ChartTooltip
+            content={
+              <ChartTooltipContent
+                labelFormatter={tooltipTimeLabel}
+                formatter={valueFormatter({ label: "Mémoire utilisée", digits: 1, unit: "Gio" })}
+              />
+            }
+          />
           <Area
             dataKey="memGib"
             type="monotone"
@@ -130,7 +145,14 @@ export function ServerTemperatureChart({ points }: { points: ServerPoint[] }) {
             tickFormatter={(v) => formatNumber(Number(v), 0)}
             {...axisProps}
           />
-          <ChartTooltip content={<ChartTooltipContent labelFormatter={tooltipTimeLabel} />} />
+          <ChartTooltip
+            content={
+              <ChartTooltipContent
+                labelFormatter={tooltipTimeLabel}
+                formatter={valueFormatter({ label: "Température", digits: 1, unit: "°C" })}
+              />
+            }
+          />
           <Line
             dataKey="temp"
             type="monotone"

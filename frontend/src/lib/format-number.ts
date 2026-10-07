@@ -36,3 +36,14 @@ const TIME = new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digi
 export function formatTime(ms: number): string {
   return Number.isFinite(ms) ? TIME.format(new Date(ms)) : "–";
 }
+
+/** « 4 min », « 2 h 05 », « 1 j 3 h » — or « moins d'une minute ». */
+export function formatDuration(ms: number): string {
+  const minutes = Math.floor(ms / 60_000);
+  if (minutes < 1) return "moins d'une minute";
+  const hours = Math.floor(minutes / 60);
+  if (hours < 1) return `${minutes} min`;
+  const days = Math.floor(hours / 24);
+  if (days < 1) return `${hours} h ${String(minutes % 60).padStart(2, "0")}`;
+  return `${days} j ${hours % 24} h`;
+}

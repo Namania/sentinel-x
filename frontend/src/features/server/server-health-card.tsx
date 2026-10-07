@@ -1,6 +1,8 @@
 import { Link } from "react-router";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { formatDuration } from "@/lib/format-number";
+import { useNow } from "@/lib/use-now";
 import { cn } from "@/lib/utils";
 import { HealthGauge } from "./health-gauge";
 import {
@@ -59,6 +61,8 @@ function Gauges({ latest, history }: { latest: ServerHealth; history: ServerHeal
 /** Wall-screen card: the host's health at a glance; the whole card opens the detail page. */
 export function ServerHealthCard({ className }: { className?: string }) {
   const { status, latest, history, connected } = useServerHealth();
+  const now = useNow();
+  const stale = !connected && latest ? formatDuration(now - Date.parse(latest.recorded_at)) : null;
   return (
     <Link
       to="/serveur"
@@ -79,6 +83,7 @@ export function ServerHealthCard({ className }: { className?: string }) {
             <span className="sr-only">
               {connected ? "temps réel actif" : "temps réel interrompu"}
             </span>
+            {stale && <span className="text-muted-foreground">il y a {stale}</span>}
           </span>
         </CardHeader>
         <CardContent className="flex flex-1 flex-col justify-between gap-3">

@@ -25,6 +25,7 @@ import {
 import { formatNumber, formatTime } from "@/lib/format-number";
 import type { MetricPoint } from "./metrics-api";
 import { tooltipTimeLabel } from "./tooltip-label";
+import { valueFormatter } from "./tooltip-value";
 
 const temperatureConfig = {
   temperature: { label: "Température (°C)", color: "var(--metric-temperature)" },
@@ -94,7 +95,14 @@ export function TemperatureChart({ points }: { points: MetricPoint[] }) {
             tickFormatter={(v) => formatNumber(Number(v), 1)}
             {...axisProps}
           />
-          <ChartTooltip content={<ChartTooltipContent labelFormatter={tooltipTimeLabel} />} />
+          <ChartTooltip
+            content={
+              <ChartTooltipContent
+                labelFormatter={tooltipTimeLabel}
+                formatter={valueFormatter({ label: "Température (°C)", digits: 1 })}
+              />
+            }
+          />
           <Line
             dataKey="temperature"
             type="monotone"
@@ -129,7 +137,14 @@ export function HumidityChart({ points }: { points: MetricPoint[] }) {
             {...axisProps}
           />
           <YAxis width={40} domain={[0, 100]} {...axisProps} />
-          <ChartTooltip content={<ChartTooltipContent labelFormatter={tooltipTimeLabel} />} />
+          <ChartTooltip
+            content={
+              <ChartTooltipContent
+                labelFormatter={tooltipTimeLabel}
+                formatter={valueFormatter({ label: "Humidité (%)", digits: 0 })}
+              />
+            }
+          />
           <Area
             dataKey="humidity"
             type="monotone"
@@ -158,7 +173,14 @@ export function GasChart({ points }: { points: MetricPoint[] }) {
           <CartesianGrid vertical={false} strokeOpacity={0.4} />
           <XAxis dataKey="time" tickFormatter={formatTime} {...axisProps} />
           <YAxis width={48} tickFormatter={(v) => formatNumber(Number(v), 0)} {...axisProps} />
-          <ChartTooltip content={<ChartTooltipContent labelFormatter={tooltipTimeLabel} />} />
+          <ChartTooltip
+            content={
+              <ChartTooltipContent
+                labelFormatter={tooltipTimeLabel}
+                formatter={valueFormatter({ label: "Gaz (mV)", digits: 0 })}
+              />
+            }
+          />
           {/* No animations: live data redraws every few seconds, and bar labels only appear once it ends. */}
           <Bar
             dataKey="gas"

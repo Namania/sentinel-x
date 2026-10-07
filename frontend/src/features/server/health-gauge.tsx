@@ -25,7 +25,7 @@ export function HealthGauge({ label, valueText, ratio, warn, series }: Props) {
       <p className="text-muted-foreground text-xs">{label}</p>
       <p className="text-right text-sm font-semibold tabular-nums">{valueText}</p>
       <div
-        role="progressbar"
+        role="meter"
         aria-label={`${label} : ${valueText}`}
         aria-valuemin={0}
         aria-valuemax={100}

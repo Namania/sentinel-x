@@ -119,4 +119,24 @@ describe("useServerHealth", () => {
     expect(screen.getByText("uptime:555")).toBeInTheDocument();
     expect(screen.getByText("count:1")).toBeInTheDocument();
   });
+
+  it("reloads the history after the socket reconnects", async () => {
+    let connections = 0;
+    server.use(
+      sensorsLink.addEventListener("connection", ({ client }) => {
+        connections += 1;
+        if (connections === 1) setTimeout(() => client.close(), 50);
+      }),
+    );
+    renderProbe();
+    await screen.findByText("status:ready");
+    server.use(
+      http.get("/api/server/health", () => {
+        const history = [makeHealth({ uptime_s: 4242 })];
+        return HttpResponse.json({ latest: history[0], history });
+      }),
+    );
+    expect(await screen.findByText("uptime:4242", {}, { timeout: 4000 })).toBeInTheDocument();
+    expect(screen.getByText("status:ready")).toBeInTheDocument();
+  }, 8000);
 });

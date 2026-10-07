@@ -3,7 +3,7 @@ import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
 import { REFRESH_TOKEN_KEY } from "@/features/auth/token-storage";
 import { renderRoutes } from "@/test/render";
-import { server, VALID_REFRESH } from "@/test/server";
+import { sensorsLink, server, VALID_REFRESH } from "@/test/server";
 import { healthFixture, makeHealth, SERVER_NOW_MS } from "@/test/server-health";
 import { ServerHealthCard } from "./server-health-card";
 
@@ -57,8 +57,8 @@ describe("ServerHealthCard", () => {
     const link = await card();
     const cpu = within(await link.findByRole("group", { name: "CPU" }));
     expect(cpu.getByText("92 %")).toBeInTheDocument();
-    expect(cpu.getByRole("progressbar")).toHaveAttribute("data-warn", "true");
-    expect(cpu.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "92");
+    expect(cpu.getByRole("meter")).toHaveAttribute("data-warn", "true");
+    expect(cpu.getByRole("meter")).toHaveAttribute("aria-valuenow", "92");
   });
 
   it("shows a skeleton while loading and a message on error", async () => {
@@ -75,5 +75,14 @@ describe("ServerHealthCard", () => {
     const anchor = screen.getByRole("link", { name: LINK });
     expect(anchor.querySelectorAll('[tabindex]:not([tabindex="-1"]), a, button')).toHaveLength(0);
     expect(link.queryAllByRole("application")).toHaveLength(0);
+  });
+
+  it("says how old the data is while the live stream is down", async () => {
+    // The socket drops at once and every time: the card must not pretend to be live.
+    server.use(sensorsLink.addEventListener("connection", ({ client }) => client.close()));
+    const link = await card();
+    await link.findByRole("group", { name: "CPU" });
+    expect(await link.findByText(/^il y a /)).toBeInTheDocument();
+    expect(link.getByText("temps réel interrompu")).toBeInTheDocument();
   });
 });

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/features/auth/use-auth";
 import { useEventStream } from "@/features/realtime/use-event-stream";
+import { useResyncKey } from "@/features/realtime/use-resync-key";
 import {
   appendHealth,
   SERVER_HEALTH_PATH,
@@ -20,32 +21,6 @@ export function useServerHealth(enabled = true) {
   const loaded = useRef(false);
   // Set when the history request failed; the first live sample then rebuilds the state.
   const failed = useRef(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    loaded.current = false;
-    failed.current = false;
-    authFetch<ServerHealthResponse>(SERVER_HEALTH_PATH)
-      .then((response) => {
-        if (cancelled) return;
-        const merged = pending.current.reduce(
-          (acc, sample) => appendHealth(acc, sample),
-          response.history,
-        );
-        pending.current = [];
-        loaded.current = true;
-        setHistory(merged);
-        setStatus("ready");
-      })
-      .catch(() => {
-        if (cancelled) return;
-        failed.current = true;
-        setStatus("error");
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [authFetch]);
 
   const onEvent = useCallback((type: string, data: unknown) => {
     if (type !== "server.health" || !data) return;
@@ -67,6 +42,34 @@ export function useServerHealth(enabled = true) {
     setHistory((current) => appendHealth(current, sample));
   }, []);
   const { connected } = useEventStream(enabled, onEvent);
+  // Samples emitted while the socket was down are lost: reload the history after a reconnect.
+  const resyncKey = useResyncKey(connected);
+
+  useEffect(() => {
+    let cancelled = false;
+    loaded.current = false;
+    failed.current = false;
+    authFetch<ServerHealthResponse>(SERVER_HEALTH_PATH)
+      .then((response) => {
+        if (cancelled) return;
+        const merged = pending.current.reduce(
+          (acc, sample) => appendHealth(acc, sample),
+          response.history,
+        );
+        pending.current = [];
+        loaded.current = true;
+        setHistory(merged);
+        setStatus("ready");
+      })
+      .catch(() => {
+        if (cancelled) return;
+        failed.current = true;
+        setStatus((current) => (current === "ready" ? current : "error"));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [authFetch, resyncKey]);
 
   return { status, latest: history.at(-1) ?? null, history, connected };
 }

@@ -1,4 +1,6 @@
-import { formatNumber } from "@/lib/format-number";
+import { formatDuration, formatNumber } from "@/lib/format-number";
+
+export { formatDuration };
 
 export type Metric = "temperature" | "humidity" | "gas";
 export type Direction = "low" | "high";
@@ -74,16 +76,6 @@ export function sortAlerts(alerts: Alert[]): Alert[] {
 export function upsert(alerts: Alert[], alert: Alert): Alert[] {
   const others = alerts.filter((a) => a.id !== alert.id);
   return sortAlerts([...others, alert]);
-}
-
-export function formatDuration(ms: number): string {
-  const minutes = Math.floor(ms / 60_000);
-  if (minutes < 1) return "moins d'une minute";
-  const hours = Math.floor(minutes / 60);
-  if (hours < 1) return `${minutes} min`;
-  const days = Math.floor(hours / 24);
-  if (days < 1) return `${hours} h ${String(minutes % 60).padStart(2, "0")}`;
-  return `${days} j ${hours % 24} h`;
 }
 
 export function durationLabel(alert: Alert, nowMs: number): string {
