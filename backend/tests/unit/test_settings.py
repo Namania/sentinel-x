@@ -103,3 +103,18 @@ def test_alert_thresholds_from_env_and_inverted_bounds_rejected(monkeypatch):
 def test_empty_alert_gas_max_means_disabled(monkeypatch):
     monkeypatch.setenv("ALERT_GAS_MAX_MV", "")
     assert Settings(_env_file=None, jwt_secret="x" * 32).thresholds().gas_max is None
+
+
+def test_siren_defaults_and_trigger_accessor():
+    from app.domain.siren import Trigger
+
+    settings = Settings(_env_file=None, jwt_secret="x" * 32)
+    assert settings.mqtt_buzzer_topic == "sentinel/cmd/buzzer"
+    assert settings.buzzer_mute_minutes == 15
+    assert settings.triggers() == (Trigger("gas", None), Trigger("temperature", "high"))
+
+
+def test_unknown_buzzer_trigger_is_refused(monkeypatch):
+    monkeypatch.setenv("BUZZER_TRIGGERS", "gas,pressure")
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, jwt_secret="x" * 32)

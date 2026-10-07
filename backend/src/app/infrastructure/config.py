@@ -1,9 +1,10 @@
 from pathlib import Path
 
-from pydantic import field_validator, model_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.domain.alert import Thresholds
+from app.domain.siren import Trigger, parse_triggers
 
 
 class Settings(BaseSettings):
@@ -43,6 +44,14 @@ class Settings(BaseSettings):
     alert_humidity_max_pct: float = 70.0
     alert_gas_max_mv: int | None = None  # None → only the device's own gas alert flag counts
 
+    # Siren: the ESP32 buzzer follows a retained MQTT state message (see docs/.../siren spec).
+    mqtt_buzzer_topic: str = "sentinel/cmd/buzzer"
+    buzzer_triggers: str = "gas,temperature:high"  # "metric" or "metric:low|high", comma-separated
+    buzzer_mute_minutes: int = Field(default=15, ge=1, le=240)
+
+    def triggers(self) -> tuple[Trigger, ...]:
+        return parse_triggers(self.buzzer_triggers)
+
     def thresholds(self) -> Thresholds:
         return Thresholds(
             temperature=(self.alert_temperature_min_c, self.alert_temperature_max_c),
@@ -58,6 +67,7 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def _alert_bounds_must_be_ordered(self) -> "Settings":
         self.thresholds()  # raises ValueError on min >= max → ValidationError
+        self.triggers()  # raises ValueError on an unknown metric or direction
         return self
 
     @field_validator("device_api_key")
