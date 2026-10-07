@@ -52,8 +52,8 @@ function NavItem({ to, label, icon: Icon, end, badge }: NavItemProps) {
           }}
         >
           <Icon />
-          {/* The button no longer clips (the badge sits on its corner): hide the label ourselves. */}
-          <span className="group-data-[collapsible=icon]:hidden">{label}</span>
+          {/* The button no longer clips (the badge sits on its corner): hide the label ourselves, but keep it readable by assistive tech and locators. */}
+          <span className="group-data-[collapsible=icon]:sr-only">{label}</span>
           {badge ? (
             <>
               <span
