@@ -66,11 +66,12 @@ describe("AppSidebar", () => {
     expect(localStorage.getItem(REFRESH_TOKEN_KEY)).toBeNull();
   });
 
-  it("shows only the S of the title while collapsed, the full name once opened", async () => {
+  it("shows the logo while collapsed, the full name once opened", async () => {
     const user = userEvent.setup();
     renderAuthenticated("/");
     await screen.findByRole("heading", { name: "Dashboard" });
-    expect(screen.getByText("S")).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "SENTINEL-X" })).toHaveAttribute("src", "/favicon.svg");
+    expect(screen.queryByText("S")).not.toBeInTheDocument();
     expect(screen.queryByText("SENTINEL-X")).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Afficher ou masquer le menu" }));
     expect(screen.getByText("SENTINEL-X")).toBeInTheDocument();

@@ -82,9 +82,11 @@ export function AppSidebar() {
     <Sidebar collapsible="icon">
       {/* Same height as the top bar of the page (h-12) so both bottom borders line up. */}
       <SidebarHeader className="h-12 flex-row items-center justify-center border-b p-0">
-        <span className="text-sm font-bold tracking-[0.18em]">
-          {collapsed ? "S" : "SENTINEL-X"}
-        </span>
+        {collapsed ? (
+          <img src="/favicon.svg" alt="SENTINEL-X" className="size-6 rounded-md" />
+        ) : (
+          <span className="text-sm font-bold tracking-[0.18em]">SENTINEL-X</span>
+        )}
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
