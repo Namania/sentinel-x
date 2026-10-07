@@ -30,11 +30,12 @@ l'équipe pour la partie ESP.
 
 ```json
 {"on": true,  "reason": "gas",  "open": 2, "muted_until": null,                   "at": "2026-10-07T09:12:03Z"}
-{"on": false, "reason": null,   "open": 1, "muted_until": "2026-10-07T09:27:03Z", "at": "2026-10-07T09:12:03Z"}
+{"on": false, "reason": "gas",  "open": 1, "muted_until": "2026-10-07T09:27:03Z", "at": "2026-10-07T09:12:03Z"}
 ```
 
   - `on` : ce que le buzzer doit faire. C'est la seule clé que l'ESP doit lire.
-  - `reason` : la métrique qui fait sonner (`gas` prioritaire sur `temperature`), `null` sinon.
+  - `reason` : la métrique qui ferait sonner (`gas` prioritaire sur `temperature`), gardée pendant une
+    coupure pour que le front puisse dire « coupée (gaz) » ; `null` quand rien ne correspond.
   - `open` : nombre d'alertes ouvertes toutes métriques confondues (information).
   - `muted_until` : fin de la coupure en cours, `null` sinon.
   - `at` : horodatage de la décision.
