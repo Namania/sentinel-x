@@ -63,6 +63,8 @@ services:
     # node against the host user's groups, so the user running Docker must be in it too.
     group_add:
       - "44"
+    ports:
+      - "9910:8080"
     environment:
       # Keep the frame rate steady in dim light (the control's name depends on the kernel; the
       # entrypoint skips the ones this camera does not expose).
