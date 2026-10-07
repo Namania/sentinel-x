@@ -25,6 +25,8 @@ class Track:
     box: Box
     identity: str | None = None
     identity_confidence: float | None = None
+    blacklisted_as: str | None = None
+    blacklist_confidence: float | None = None
     # When the face was last checked (time.monotonic); -inf = never.
     last_check: float = field(default=-math.inf)
     misses: int = 0

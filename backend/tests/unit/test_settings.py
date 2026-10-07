@@ -111,7 +111,11 @@ def test_siren_defaults_and_trigger_accessor():
     settings = Settings(_env_file=None, jwt_secret="x" * 32)
     assert settings.mqtt_buzzer_topic == "sentinel/cmd/buzzer"
     assert settings.buzzer_mute_minutes == 15
-    assert settings.triggers() == (Trigger("gas", None), Trigger("temperature", "high"))
+    assert settings.triggers() == (
+        Trigger("gas", None),
+        Trigger("temperature", "high"),
+        Trigger("intruder", None),
+    )
 
 
 def test_unknown_buzzer_trigger_is_refused(monkeypatch):

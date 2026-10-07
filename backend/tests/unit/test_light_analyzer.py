@@ -3,7 +3,7 @@
 import cv2
 import numpy as np
 
-from app.infrastructure.vision.face_whitelist import FaceWhitelist
+from app.infrastructure.vision.face_whitelist import FaceList
 from app.infrastructure.vision.light_analyzer import (
     RECHECK_KNOWN_SECONDS,
     RECHECK_UNKNOWN_SECONDS,
@@ -13,6 +13,7 @@ from app.infrastructure.vision.motion import MAX_SKIP_SECONDS, MotionGate
 from app.infrastructure.vision.person_detector import DetectedPerson
 
 KEVAN = np.array([1.0, 0.0, 0.0], dtype=np.float32)
+MARC = np.array([0.0, 0.0, 1.0], dtype=np.float32)
 
 
 class Clock:
@@ -49,11 +50,16 @@ def _jpeg(value: int) -> bytes:
     return encoded.tobytes()
 
 
-def _analyzer(detector=None, encoder=None):
+def _analyzer(detector=None, encoder=None, blacklist=None):
     clock = Clock()
     encoder = encoder or FakeEncoder()
-    whitelist = FaceWhitelist({"kevan": [KEVAN]})
-    analyzer = LightVisionAnalyzer(detector or FakeDetector(), (encoder, whitelist), clock)
+    whitelist = FaceList({"kevan": [KEVAN]})
+    analyzer = LightVisionAnalyzer(
+        detector or FakeDetector(),
+        (encoder, whitelist),
+        (encoder, blacklist) if blacklist is not None else None,
+        clock,
+    )
     return analyzer, clock, encoder
 
 
@@ -124,9 +130,43 @@ def test_a_known_person_turning_away_keeps_their_name():
 
 
 def test_without_face_identification_everyone_is_unnamed():
-    analyzer = LightVisionAnalyzer(FakeDetector(), None, Clock())
+    analyzer = LightVisionAnalyzer(FakeDetector(), clock=Clock())
     [person] = analyzer.analyze(_jpeg(50))
     assert person.identity is None
+
+
+def test_a_blacklisted_face_is_flagged():
+    analyzer, _, _ = _analyzer(blacklist=FaceList({"marc": [KEVAN]}))
+    [person] = analyzer.analyze(_jpeg(50))
+    assert person.blacklisted_as == "marc"
+    assert person.blacklist_confidence is not None
+
+
+def test_a_non_blacklisted_known_face_is_not_flagged():
+    analyzer, _, _ = _analyzer(blacklist=FaceList({"marc": [MARC]}))
+    [person] = analyzer.analyze(_jpeg(50))
+    assert person.identity == "kevan"
+    assert person.blacklisted_as is None
+
+
+def test_blacklist_alone_still_identifies_without_a_whitelist():
+    """No whitelist, blacklist only: the encoder still runs and flags a blacklisted face."""
+    encoder = FakeEncoder()
+    analyzer = LightVisionAnalyzer(
+        FakeDetector(), faces=None, blacklist=(encoder, FaceList({"marc": [KEVAN]})), clock=Clock()
+    )
+    [person] = analyzer.analyze(_jpeg(50))
+    assert person.blacklisted_as == "marc"
+    assert person.identity is None
+
+
+def test_a_blacklisted_person_is_always_rechecked_at_the_unknown_cadence():
+    analyzer, clock, encoder = _analyzer(blacklist=FaceList({"marc": [KEVAN]}))
+    analyzer.analyze(_jpeg(50))
+    assert encoder.calls == 1
+    clock.now += RECHECK_UNKNOWN_SECONDS
+    analyzer.analyze(_jpeg(200))
+    assert encoder.calls == 2
 
 
 def test_an_undecodable_frame_returns_the_last_result():

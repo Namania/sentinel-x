@@ -9,6 +9,9 @@ for a trailing number in parentheses, e.g. `known_faces/Abdel (2).jpeg` -> "Abde
 left by phones and browsers when saving several photos under the same name). A camera face is
 compared to every photo and the closest one wins, so a few clear, front-facing shots per person
 work best. Photos and camera crops go through the same pipeline, so their vectors are comparable.
+
+`known_faces/blacklist/` holds the same kind of photos for people who must raise an alert on
+sight, loaded the same way into a second, separate `FaceList`.
 """
 
 from __future__ import annotations
@@ -64,7 +67,9 @@ class FaceEncoder:
         return np.asarray(self._recognizer.feature(aligned), dtype=np.float32).flatten()
 
 
-class FaceWhitelist:
+class FaceList:
+    """A named set of people, each with one or more reference embeddings."""
+
     def __init__(self, known: dict[str, list[np.ndarray]]) -> None:
         self._known = known
 
@@ -74,16 +79,14 @@ class FaceWhitelist:
         return len(self._known)
 
     @classmethod
-    def load(cls, known_faces_dir: Path, encoder: FaceEncoder) -> FaceWhitelist:
+    def load(cls, directory: Path, encoder: FaceEncoder, *, label: str = "faces") -> FaceList:
         known: dict[str, list[np.ndarray]] = {}
-        if not known_faces_dir.is_dir():
-            logger.warning(
-                "known faces directory %s does not exist; whitelist is empty", known_faces_dir
-            )
+        if not directory.is_dir():
+            logger.warning("%s directory %s does not exist; it is empty", label, directory)
             return cls(known)
 
-        for path in sorted(known_faces_dir.iterdir()):
-            if path.suffix.lower() not in _IMAGE_SUFFIXES:
+        for path in sorted(directory.iterdir()):
+            if not path.is_file() or path.suffix.lower() not in _IMAGE_SUFFIXES:
                 continue
             image = _read_reference(path)
             embedding = encoder.encode(image) if image is not None else None
@@ -94,12 +97,10 @@ class FaceWhitelist:
                 continue
             name = person_name(path.stem)
             known.setdefault(name, []).append(embedding)
-            logger.info("loaded known face %r from %s", name, path.name)
+            logger.info("loaded %s face %r from %s", label, name, path.name)
 
         if not known:
-            logger.warning(
-                "no known faces loaded from %s; everyone will be an intruder", known_faces_dir
-            )
+            logger.warning("no %s faces loaded from %s", label, directory)
         return cls(known)
 
     def match(self, face_embedding: np.ndarray) -> tuple[str, float] | None:
@@ -114,6 +115,11 @@ class FaceWhitelist:
         if best_name is None or best_similarity < MATCH_THRESHOLD:
             return None
         return best_name, best_similarity
+
+
+# Kept as an alias: `FaceWhitelist.load(...)` reads the same way it always has, and the known
+# faces directory holds the whitelist photos directly (the blacklist is its `blacklist/` subdir).
+FaceWhitelist = FaceList
 
 
 def person_name(stem: str) -> str:

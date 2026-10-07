@@ -107,3 +107,18 @@ def test_load_keeps_only_photos_with_a_usable_face(tmp_path):
     whitelist = FaceWhitelist.load(tmp_path, Encoder())
     assert whitelist.size == 1
     assert whitelist.match(KEVAN.copy()) is not None
+
+
+def test_load_skips_subdirectories(tmp_path):
+    """The blacklist/ subdirectory is loaded separately; it must not be read as a photo here."""
+
+    class Encoder:
+        def encode(self, image):
+            return KEVAN
+
+    cv2.imwrite(str(tmp_path / "kevan1.png"), np.zeros((50, 50, 3), np.uint8))
+    (tmp_path / "blacklist").mkdir()
+    (tmp_path / "blacklist" / "marc1.png").write_bytes(b"not actually read from here")
+
+    whitelist = FaceWhitelist.load(tmp_path, Encoder())
+    assert whitelist.size == 1

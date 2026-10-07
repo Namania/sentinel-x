@@ -91,11 +91,16 @@ export function CameraView() {
         imageRef={imgRef}
       />
       {state === "live" && <DetectionOverlay snapshot={snapshot} imageRef={imgRef} />}
-      {snapshot?.has_intruder && (
+      {(snapshot?.has_intruder || snapshot?.has_blacklisted) && (
         <div className="absolute inset-x-0 top-0 flex justify-center p-3">
-          <Badge className="gap-1.5 bg-red-600 text-white">
+          <Badge
+            className={cn(
+              "gap-1.5 text-white",
+              snapshot.has_blacklisted ? "bg-violet-600" : "bg-red-600",
+            )}
+          >
             <ShieldAlert className="size-4" />
-            INTRUS DÉTECTÉ
+            {snapshot.has_blacklisted ? "MÉCHANT DÉTECTÉ" : "INTRUS DÉTECTÉ"}
           </Badge>
         </div>
       )}
