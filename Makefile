@@ -20,3 +20,6 @@ down:
 
 logs:
 	$(COMPOSE) logs -f
+
+fix-cam-permission:
+	sudo chmod 666 /dev/video0 /dev/video1
