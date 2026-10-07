@@ -70,8 +70,16 @@ v4l2-ctl -d /dev/video0 --list-formats-ext   # formats et résolutions (chercher
 curl -s -N http://localhost:8080/api/camera/stream?token=… | head -c 300   # le flux relayé
 ```
 
-Docker rootless : l'utilisateur qui lance Docker doit être dans le groupe `video`
-(`sudo usermod -aG video $USER`, puis se reconnecter) pour que le conteneur accède au périphérique.
+Docker rootless : le processus du conteneur ne porte pas le groupe `video` de l'hôte, et le
+périphérique est en `root:video 660`, donc µStreamer log « Can't access device: Permission denied »
+et sert « NO SIGNAL ». Ouvrir le nœud, et le garder ouvert après un redémarrage ou un rebranchement :
+
+```sh
+sudo chmod 666 /dev/video0 /dev/video1
+echo 'SUBSYSTEM=="video4linux", MODE="0666"' | sudo tee /etc/udev/rules.d/99-webcam.rules
+sudo udevadm control --reload && sudo udevadm trigger
+```
+
 En dev sur un portable le service ne démarre pas (profil `hardware` dans `compose.dev.yml`).
 
 ## Capteurs
