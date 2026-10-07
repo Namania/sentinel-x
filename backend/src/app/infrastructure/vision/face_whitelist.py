@@ -4,7 +4,9 @@ Two small ONNX models run by OpenCV (no TensorFlow): YuNet finds and aligns the 
 it into an embedding (a vector of 128 numbers). Two photos of the same person give close vectors.
 
 Each person can have several photos: the file stem without its trailing number is the name shown
-in the UI, e.g. `known_faces/kevan1.jpg` and `known_faces/kevan2.jpg` -> "kevan". A camera face is
+in the UI, e.g. `known_faces/kevan1.jpg` and `known_faces/kevan2.jpg` -> "kevan". The same holds
+for a trailing number in parentheses, e.g. `known_faces/Abdel (2).jpeg` -> "Abdel" (the pattern
+left by phones and browsers when saving several photos under the same name). A camera face is
 compared to every photo and the closest one wins, so a few clear, front-facing shots per person
 work best. Photos and camera crops go through the same pipeline, so their vectors are comparable.
 """
@@ -115,8 +117,8 @@ class FaceWhitelist:
 
 
 def person_name(stem: str) -> str:
-    """`kevan`, `kevan2` and `kevan_2` all belong to "kevan"."""
-    return re.sub(r"[\s_-]*\d+$", "", stem) or stem
+    """`kevan`, `kevan2`, `kevan_2` and `kevan (2)` all belong to "kevan"."""
+    return re.sub(r"[\s_-]*(\(\d+\)|\d+)$", "", stem) or stem
 
 
 def is_usable_face(face: np.ndarray) -> bool:

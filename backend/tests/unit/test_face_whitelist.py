@@ -57,7 +57,14 @@ def test_any_photo_of_a_person_can_match():
 
 @pytest.mark.parametrize(
     ("stem", "name"),
-    [("kevan", "kevan"), ("Kevan1", "Kevan"), ("kevan_2", "kevan"), ("kevan-12", "kevan")],
+    [
+        ("kevan", "kevan"),
+        ("Kevan1", "Kevan"),
+        ("kevan_2", "kevan"),
+        ("kevan-12", "kevan"),
+        ("Abdel (2)", "Abdel"),
+        ("Abdel (10)", "Abdel"),
+    ],
 )
 def test_photos_numbered_after_the_name_belong_to_the_same_person(stem, name):
     assert vision.person_name(stem) == name
