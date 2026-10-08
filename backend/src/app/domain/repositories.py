@@ -7,6 +7,7 @@ from uuid import UUID
 
 from app.domain.alert import Alert, Metric
 from app.domain.sensor_reading import DeviceSummary, ReadingBucket, SensorReading
+from app.domain.ssh_event import SshEvent, SshEventFilter
 from app.domain.user import User
 
 
@@ -69,3 +70,13 @@ class AlertRepository(ABC):
 
     @abstractmethod
     async def count_open(self) -> int: ...
+
+
+class SshEventRepository(ABC):
+    @abstractmethod
+    async def add(self, event: SshEvent) -> bool:
+        """Store the event; False (and nothing written) when its journal_id is already known."""
+
+    @abstractmethod
+    async def list(self, outcome: SshEventFilter, limit: int) -> list[SshEvent]:
+        """Newest first (occurred_at descending), at most `limit`."""

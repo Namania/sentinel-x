@@ -13,11 +13,13 @@ from app.domain.repositories import (
     AlertRepository,
     AlertStatus,
     SensorReadingRepository,
+    SshEventRepository,
     UserRepository,
 )
 from app.domain.sensor_reading import DeviceSummary, ReadingBucket, SensorReading
+from app.domain.ssh_event import Outcome, Reason, SshEvent, SshEventFilter
 from app.domain.user import User
-from app.infrastructure.db.models import AlertModel, SensorReadingModel, UserModel
+from app.infrastructure.db.models import AlertModel, SensorReadingModel, SshEventModel, UserModel
 
 
 def _to_entity(row: UserModel) -> User:
@@ -240,3 +242,55 @@ class SqlAlchemyAlertRepository(AlertRepository):
         m = AlertModel
         stmt = select(func.count()).select_from(m).where(m.resolved_at.is_(None))
         return int((await self._session.execute(stmt)).scalar_one())
+
+
+def _ssh_event_to_entity(row: SshEventModel) -> SshEvent:
+    return SshEvent(
+        id=row.id,
+        journal_id=row.journal_id,
+        occurred_at=row.occurred_at,
+        outcome=cast(Outcome, row.outcome),
+        username=row.username,
+        ip=row.ip,
+        port=row.port,
+        method=row.method,
+        key_fingerprint=row.key_fingerprint,
+        key_comment=row.key_comment,
+        reason=cast(Reason | None, row.reason),
+    )
+
+
+class SqlAlchemySshEventRepository(SshEventRepository):
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def add(self, event: SshEvent) -> bool:
+        m = SshEventModel
+        exists = await self._session.scalar(select(m.id).where(m.journal_id == event.journal_id))
+        if exists is not None:
+            return False
+        self._session.add(
+            SshEventModel(
+                id=event.id,
+                journal_id=event.journal_id,
+                occurred_at=event.occurred_at,
+                outcome=event.outcome,
+                username=event.username,
+                ip=event.ip,
+                port=event.port,
+                method=event.method,
+                key_fingerprint=event.key_fingerprint,
+                key_comment=event.key_comment,
+                reason=event.reason,
+            )
+        )
+        await self._session.flush()
+        return True
+
+    async def list(self, outcome: SshEventFilter, limit: int) -> list[SshEvent]:
+        m = SshEventModel
+        stmt = select(m)
+        if outcome != "all":
+            stmt = stmt.where(m.outcome == outcome)
+        stmt = stmt.order_by(m.occurred_at.desc()).limit(limit)
+        return [_ssh_event_to_entity(r) for r in (await self._session.scalars(stmt)).all()]

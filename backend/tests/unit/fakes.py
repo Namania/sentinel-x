@@ -10,8 +10,14 @@ from app.application.ports.event_broadcaster import Event
 from app.application.ports.token_service import InvalidToken, TokenPayload
 from app.application.ports.unit_of_work import UnitOfWork
 from app.domain.alert import Alert, Metric
-from app.domain.repositories import AlertRepository, SensorReadingRepository, UserRepository
+from app.domain.repositories import (
+    AlertRepository,
+    SensorReadingRepository,
+    SshEventRepository,
+    UserRepository,
+)
 from app.domain.sensor_reading import DeviceSummary, ReadingBucket, SensorReading
+from app.domain.ssh_event import SshEvent
 from app.domain.user import User
 
 
@@ -135,11 +141,28 @@ class InMemoryAlertRepository(AlertRepository):
         return sum(1 for a in self.alerts if a.is_open)
 
 
+class InMemorySshEventRepository(SshEventRepository):
+    def __init__(self) -> None:
+        self.events: list[SshEvent] = []
+
+    async def add(self, event: SshEvent) -> bool:
+        if any(e.journal_id == event.journal_id for e in self.events):
+            return False
+        self.events.append(event)
+        return True
+
+    async def list(self, outcome, limit):
+        rows = [e for e in self.events if outcome == "all" or e.outcome == outcome]
+        rows.sort(key=lambda e: e.occurred_at, reverse=True)
+        return rows[:limit]
+
+
 class InMemoryUnitOfWork(UnitOfWork):
     def __init__(self) -> None:
         self.users = InMemoryUserRepository()
         self.readings = InMemorySensorReadingRepository()
         self.alerts = InMemoryAlertRepository()
+        self.ssh_events = InMemorySshEventRepository()
         self.committed = False
         self.rolled_back = False
 

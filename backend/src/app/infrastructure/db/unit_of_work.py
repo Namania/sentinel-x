@@ -8,6 +8,7 @@ from app.application.ports.unit_of_work import UnitOfWork
 from app.infrastructure.db.repositories import (
     SqlAlchemyAlertRepository,
     SqlAlchemySensorReadingRepository,
+    SqlAlchemySshEventRepository,
     SqlAlchemyUserRepository,
 )
 
@@ -22,6 +23,7 @@ class SqlAlchemyUnitOfWork(UnitOfWork):
         self.users = SqlAlchemyUserRepository(self._session)
         self.readings = SqlAlchemySensorReadingRepository(self._session)
         self.alerts = SqlAlchemyAlertRepository(self._session)
+        self.ssh_events = SqlAlchemySshEventRepository(self._session)
         return self
 
     async def __aexit__(
