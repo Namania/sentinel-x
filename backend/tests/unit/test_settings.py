@@ -128,3 +128,15 @@ def test_ssh_alert_quiet_minutes_defaults_to_ten_and_is_bounded(monkeypatch):
     monkeypatch.setenv("SSH_ALERT_QUIET_MINUTES", "0")
     with pytest.raises(ValidationError):
         Settings(_env_file=None, jwt_secret="x" * 32)
+
+
+def test_mqtt_credentials_come_in_pairs(monkeypatch):
+    settings = Settings(_env_file=None, jwt_secret="x" * 32)
+    assert (settings.mqtt_username, settings.mqtt_password) == (None, None)
+    both = Settings(
+        _env_file=None, jwt_secret="x" * 32, mqtt_username="sentinel-api", mqtt_password="s3cret"
+    )
+    assert (both.mqtt_username, both.mqtt_password) == ("sentinel-api", "s3cret")
+    monkeypatch.setenv("MQTT_USERNAME", "sentinel-api")
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, jwt_secret="x" * 32)

@@ -40,6 +40,9 @@ class Settings(BaseSettings):
     mqtt_host: str | None = None
     mqtt_port: int = 1883
     mqtt_topic: str = "sentinel/+"
+    # The broker refuses anonymous clients: the API's own account (make mqtt-user sentinel-api).
+    mqtt_username: str | None = None
+    mqtt_password: str | None = None
 
     # Host health shown on the dashboard. /proc inside Docker already describes the host; the
     # thermal zone and the disk are bind-mounted by compose.yml (see HOST_* there).
@@ -74,6 +77,12 @@ class Settings(BaseSettings):
             humidity=(self.alert_humidity_min_pct, self.alert_humidity_max_pct),
             gas_max=self.alert_gas_max_mv,
         )
+
+    @model_validator(mode="after")
+    def _mqtt_credentials_in_pairs(self) -> "Settings":
+        if (self.mqtt_username is None) != (self.mqtt_password is None):
+            raise ValueError("MQTT_USERNAME and MQTT_PASSWORD go together")
+        return self
 
     @field_validator("alert_gas_max_mv", mode="before")
     @classmethod

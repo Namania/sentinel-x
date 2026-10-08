@@ -111,7 +111,12 @@ def _start_mqtt_subscriber(app: FastAPI, settings: Settings) -> asyncio.Task[Non
     if not settings.mqtt_host:
         return None
     subscriber = MqttSubscriber(
-        connect=connect_factory(settings.mqtt_host, settings.mqtt_port),
+        connect=connect_factory(
+            settings.mqtt_host,
+            settings.mqtt_port,
+            username=settings.mqtt_username,
+            password=settings.mqtt_password,
+        ),
         topic=settings.mqtt_topic,
         uow_factory=lambda: SqlAlchemyUnitOfWork(app.state.session_factory),
         broadcaster=app.state.hub,
@@ -142,7 +147,13 @@ def _build_siren_publisher(settings: Settings) -> MqttSirenPublisher | None:
     """The ESP32 buzzer listens on a retained topic; without a broker the state is only shown."""
     if not settings.mqtt_host:
         return None
-    connect = connect_factory(settings.mqtt_host, settings.mqtt_port, identifier="sentinel-x-siren")
+    connect = connect_factory(
+        settings.mqtt_host,
+        settings.mqtt_port,
+        identifier="sentinel-x-siren",
+        username=settings.mqtt_username,
+        password=settings.mqtt_password,
+    )
     return MqttSirenPublisher(connect, settings.mqtt_buzzer_topic)
 
 
