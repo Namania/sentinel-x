@@ -24,6 +24,13 @@ Le seul fichier de configuration est `backend/.env` (copié de `backend/.env.exa
 
 Il n'y a pas d'inscription par l'API : les comptes se créent uniquement avec la commande `create-user`, qui demande l'email puis le mot de passe (masqué, avec confirmation). En local hors Docker : `uv run create-user`.
 
+## Accès SSH au Pi
+
+La connexion se fait par clé uniquement (port non standard, mots de passe refusés). Pour autoriser
+quelqu'un sur le compte `sentinel-x` : il génère sa clé sur sa machine (`ssh-keygen -t ed25519`) et
+envoie le `.pub` ; sur le Pi, `make ssh-add` demande la clé, la vérifie, refuse les doublons et
+l'écrit sans droit de tunnel. `make ssh-remove` liste les clés autorisées et en retire une.
+
 ## Développer
 
 Avec Docker, tout le stack en rechargement à chaud (uvicorn `--reload` et Vite HMR) :
