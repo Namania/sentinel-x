@@ -5,10 +5,12 @@
 #   make logs    follow the logs
 #   make ssh-add     authorise someone's SSH public key on this account (asks for the key)
 #   make ssh-remove  list the authorised keys and remove one
+#   make ssh-log-install  on the Pi: relay the SSH connections (accepted / refused) to the dashboard
+#   make ssh-log-logs     follow that agent's logs
 COMPOSE      := docker compose
 COMPOSE_DEV  := $(COMPOSE) -f compose.yml -f compose.dev.yml
 
-.PHONY: dev deploy down logs ssh-add ssh-remove
+.PHONY: dev deploy down logs ssh-add ssh-remove ssh-log-install ssh-log-logs
 
 dev:
 	$(COMPOSE_DEV) up --build --renew-anon-volumes
@@ -31,3 +33,9 @@ ssh-add:
 
 ssh-remove:
 	@sh scripts/ssh-remove-key.sh
+
+ssh-log-install:
+	@sh scripts/ssh-log-install.sh
+
+ssh-log-logs:
+	journalctl --user -u sentinel-ssh-log -f

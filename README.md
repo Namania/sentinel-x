@@ -31,6 +31,19 @@ quelqu'un sur le compte `sentinel-x` : il génère sa clé sur sa machine (`ssh-
 envoie le `.pub` ; sur le Pi, `make ssh-add` demande la clé, la vérifie, refuse les doublons et
 l'écrit sans droit de tunnel. `make ssh-remove` liste les clés autorisées et en retire une.
 
+**Journal des connexions.** `make ssh-log-install` (sur le Pi) installe un agent hors Docker
+(`scripts/ssh-log-agent.py`, service utilisateur systemd `sentinel-ssh-log`, linger activé) qui
+suit le journal de sshd et pousse chaque connexion à l'API (`POST /api/ssh/events`, en-tête
+`X-Device-Key`) : acceptée, avec le **commentaire de la clé** (le mail) retrouvé dans
+`~/.ssh/authorized_keys` ; refusée, avec l'utilisateur tenté, l'IP et la raison (clé non acceptée,
+utilisateur inconnu, mot de passe refusé, trop de tentatives). La page `/ssh` « Accès SSH » les
+liste en direct (`GET /api/ssh/events?outcome=all|accepted|refused&limit=…`, événement WebSocket
+`ssh.event`). Un refus ouvre une alerte `ssh` par IP (`device_id` = `ip:…`, valeur = nombre de
+tentatives), résolue après `SSH_ALERT_QUIET_MINUTES` (10) sans nouvelle tentative ; ajouter `ssh` à
+`BUZZER_TRIGGERS` pour qu'elle fasse sonner le buzzer. Au premier démarrage l'agent rejoue les 24
+dernières heures, puis reprend au curseur journald : rien n'est perdu pendant un `make deploy`.
+`make ssh-log-logs` suit ses logs ; `systemctl --user disable --now sentinel-ssh-log` le retire.
+
 ## Développer
 
 Avec Docker, tout le stack en rechargement à chaud (uvicorn `--reload` et Vite HMR) :
@@ -152,7 +165,8 @@ appareils : `ALERT_TEMPERATURE_MIN_C=10`, `ALERT_TEMPERATURE_MAX_C=30`, `ALERT_H
 `ALERT_HUMIDITY_MAX_PCT=70`, `ALERT_GAS_MAX_MV` (vide : seul l'état « alerte » de l'ESP compte).
 `GET /api/alerts?status=open|resolved|all&device_id=…&limit=…` (ouvertes d'abord),
 `GET /api/alerts/summary` → `{"open": n}`. Le Dashboard, la page `/alertes` et le badge de la nav
-suivent la liste en direct.
+suivent la liste en direct. La métrique `ssh` (connexions SSH refusées, voir « Accès SSH au Pi »)
+suit le même cycle ; quand son compteur de tentatives monte, l'API émet `alert.updated`.
 
 **Sirène.** L'API publie l'état du buzzer sur le topic MQTT **retenu** `sentinel/cmd/buzzer`
 (QoS 1) : `{"on": true, "reason": "gas", "open": 2, "muted_until": null, "at": "…"}`. `on` est vrai
