@@ -1,8 +1,9 @@
+import { groupByDay as groupItemsByDay, dayLabel } from "@/lib/day-groups";
 import { formatDuration, formatNumber } from "@/lib/format-number";
 
-export { formatDuration };
+export { dayLabel, formatDuration };
 
-export type Metric = "temperature" | "humidity" | "gas";
+export type Metric = "temperature" | "humidity" | "gas" | "ssh";
 export type Direction = "low" | "high";
 
 export type Alert = {
@@ -33,24 +34,42 @@ export const METRIC_LABELS: Record<Metric, string> = {
   temperature: "Température",
   humidity: "Humidité",
   gas: "Gaz",
+  ssh: "SSH",
 };
 export const UNITS: Record<Metric, string> = {
   temperature: "°C",
   humidity: "%",
   gas: "mV",
+  ssh: "",
 };
 export const DIGITS: Record<Metric, number> = {
   temperature: 1,
   humidity: 0,
   gas: 0,
+  ssh: 0,
 };
 
 export function isOpen(alert: Alert): boolean {
   return alert.resolved_at === null;
 }
 
+/** The IP of an "ssh" alert's `device_id` (`ip:203.0.113.5` -> "203.0.113.5"). */
+export function ipFromDevice(alert: Alert): string {
+  return alert.device_id.startsWith("ip:") ? alert.device_id.slice("ip:".length) : alert.device_id;
+}
+
+/** « 1 tentative », « 3 tentatives » — an ssh alert's peak is a count. */
+export function attemptsLabel(count: number): string {
+  const n = Math.round(count);
+  return `${n} ${n > 1 ? "tentatives" : "tentative"}`;
+}
+
 /** « 31,2 °C > 30 °C » — the peak against the bound, or « alerte ESP » when only the flag spoke. */
 export function valueAgainstBound(alert: Alert): string {
+  if (alert.metric === "ssh") {
+    const refused = Math.round(alert.peak_value) > 1 ? "refusées" : "refusée";
+    return `${attemptsLabel(alert.peak_value)} ${refused} depuis ${ipFromDevice(alert)}`;
+  }
   if (alert.metric === "gas" && alert.threshold === 0) {
     // Raised by the device's own flag: no bound to compare with, show the level if we have one.
     return alert.peak_value > 0
@@ -68,6 +87,7 @@ export function valueAgainstBound(alert: Alert): string {
 /** « Température 31,2 °C > 30 °C » — or « Gaz : alerte ESP » when only the device flag spoke. */
 export function describeAlert(alert: Alert): string {
   const label = METRIC_LABELS[alert.metric];
+  if (alert.metric === "ssh") return `${label} : ${valueAgainstBound(alert)}`;
   if (alert.metric === "gas" && alert.threshold === 0)
     return `${label} : ${valueAgainstBound(alert)}`;
   return `${label} ${valueAgainstBound(alert)}`;
@@ -101,22 +121,26 @@ export const METRIC_COLORS: Record<Metric, string> = {
   temperature: "var(--metric-temperature)",
   humidity: "var(--metric-humidity)",
   gas: "var(--metric-gas)",
+  ssh: "var(--metric-ssh)",
 };
 
-/** « 31,2 °C », « 78 % », « 1 800 mV » — the peak with its unit. */
+/** « 31,2 °C », « 78 % », « 1 800 mV » — the peak with its unit; « 3 tentatives » for ssh. */
 export function peakLabel(alert: Alert): string {
+  if (alert.metric === "ssh") return attemptsLabel(alert.peak_value);
   return `${formatNumber(alert.peak_value, DIGITS[alert.metric])} ${UNITS[alert.metric]}`;
 }
 
-/** « 30 °C » — the bound as the settings state it; null for a flag-only gas alert. */
+/** « 30 °C » — the bound as the settings state it; null for a flag-only gas alert or ssh. */
 export function boundLabel(alert: Alert): string | null {
+  if (alert.metric === "ssh") return null;
   if (alert.metric === "gas" && alert.threshold === 0) return null;
   const digits = Number.isInteger(alert.threshold) ? 0 : DIGITS[alert.metric];
   return `${formatNumber(alert.threshold, digits)} ${UNITS[alert.metric]}`;
 }
 
-/** « +8 pts », « +3,0 °C », « −2 pts » — how far the peak went past the bound. */
+/** « +8 pts », « +3,0 °C », « −2 pts » — how far the peak went past the bound; null for ssh. */
 export function excessLabel(alert: Alert): string | null {
+  if (alert.metric === "ssh") return null;
   if (alert.metric === "gas" && alert.threshold === 0) return null;
   const delta = alert.peak_value - alert.threshold;
   const digits = DIGITS[alert.metric];
@@ -133,42 +157,20 @@ export function timeRange(alert: Alert, format: (ms: number) => string): string 
     : `${opened} → …`;
 }
 
-const DAY_LABEL = new Intl.DateTimeFormat("fr-FR", {
-  weekday: "short",
-  day: "numeric",
-  month: "short",
-});
-
-function localDay(ms: number): string {
-  const d = new Date(ms);
-  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
-}
-
-/** « Aujourd'hui », « Hier », then « lun. 6 oct. » — for grouping a timeline by day. */
-export function dayLabel(ms: number, nowMs: number): string {
-  if (localDay(ms) === localDay(nowMs)) return "Aujourd'hui";
-  if (localDay(ms) === localDay(nowMs - 86_400_000)) return "Hier";
-  return DAY_LABEL.format(new Date(ms));
-}
-
 export type DayGroup = { label: string; alerts: Alert[] };
 
 /** Alerts grouped by the day they opened, newest day first; input order is kept inside a day. */
 export function groupByDay(alerts: Alert[], nowMs: number): DayGroup[] {
-  const groups: DayGroup[] = [];
-  for (const alert of alerts) {
-    const label = dayLabel(Date.parse(alert.opened_at), nowMs);
-    const last = groups.at(-1);
-    if (last && last.label === label) last.alerts.push(alert);
-    else groups.push({ label, alerts: [alert] });
-  }
-  return groups;
+  return groupItemsByDay(alerts, nowMs, (a) => a.opened_at).map((g) => ({
+    label: g.label,
+    alerts: g.items,
+  }));
 }
 
 export type AlertSummary = { open: number; last24h: number; topMetric: Metric | null };
 
 export function summarize(alerts: Alert[], nowMs: number): AlertSummary {
-  const counts: Record<Metric, number> = { temperature: 0, humidity: 0, gas: 0 };
+  const counts: Record<Metric, number> = { temperature: 0, humidity: 0, gas: 0, ssh: 0 };
   let last24h = 0;
   for (const a of alerts) {
     counts[a.metric] += 1;

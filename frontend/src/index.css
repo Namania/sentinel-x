@@ -76,6 +76,7 @@
   --metric-temperature: #d9541e;
   --metric-humidity: #2b6fd6;
   --metric-gas: #0f8f6a;
+  --metric-ssh: #7c3aed;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: oklch(0.6 0.118 184.704);
@@ -121,6 +122,7 @@
   --metric-temperature: #e8622f;
   --metric-humidity: #4b8ae6;
   --metric-gas: #2aa87f;
+  --metric-ssh: #a78bfa;
 }
 
 @layer base {

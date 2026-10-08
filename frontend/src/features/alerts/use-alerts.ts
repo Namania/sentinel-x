@@ -6,7 +6,7 @@ import { alertsPath, isOpen, sortAlerts, upsert, type Alert } from "./alerts-api
 
 type Status = "loading" | "ready" | "error";
 
-/** The alert list, kept live by `alert.opened` / `alert.resolved` events. */
+/** The alert list, kept live by `alert.opened` / `alert.updated` / `alert.resolved` events. */
 export function useAlerts(enabled = true) {
   const { authFetch } = useAuth();
   const [status, setStatus] = useState<Status>("loading");
@@ -18,7 +18,8 @@ export function useAlerts(enabled = true) {
   const failed = useRef(false);
 
   const onEvent = useCallback((type: string, data: unknown) => {
-    if ((type !== "alert.opened" && type !== "alert.resolved") || !data) return;
+    const kinds = ["alert.opened", "alert.updated", "alert.resolved"];
+    if (!kinds.includes(type) || !data) return;
     const alert = data as Alert;
     if (!loaded.current && !failed.current) {
       pending.current = upsert(pending.current, alert);

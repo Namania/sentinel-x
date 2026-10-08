@@ -17,6 +17,7 @@ function Probe() {
       <p>total:{alerts.length}</p>
       <p>open:{open.length}</p>
       <p>ids:{alerts.map((a) => a.id).join(",")}</p>
+      <p>peak:{open[0]?.peak_value ?? "-"}</p>
       <p>count:{count ?? "-"}</p>
     </div>
   );
@@ -105,4 +106,32 @@ describe("useAlerts / useAlertCount", () => {
     expect(await screen.findByText("count:1")).toBeInTheDocument();
     expect(screen.getByText("status:ready")).toBeInTheDocument();
   }, 8000);
+
+  it("replaces the alert on alert.updated without changing the count", async () => {
+    const clients: { send(data: string): void }[] = [];
+    server.use(
+      sensorsLink.addEventListener("connection", ({ client }) => {
+        clients.push(client);
+      }),
+    );
+    renderProbe();
+    await screen.findByText("status:ready");
+    await screen.findByText("count:0");
+    await wait(50);
+    const opened = makeAlert({
+      id: "ssh",
+      metric: "ssh",
+      device_id: "ip:203.0.113.5",
+      peak_value: 1,
+    });
+    clients.forEach((c) => c.send(JSON.stringify({ type: "alert.opened", data: opened })));
+    expect(await screen.findByText("open:1")).toBeInTheDocument();
+    clients.forEach((c) =>
+      c.send(JSON.stringify({ type: "alert.updated", data: { ...opened, peak_value: 2 } })),
+    );
+    expect(await screen.findByText("peak:2")).toBeInTheDocument();
+    expect(screen.getByText("total:2")).toBeInTheDocument();
+    expect(screen.getByText("open:1")).toBeInTheDocument();
+    expect(screen.getByText("count:1")).toBeInTheDocument();
+  });
 });

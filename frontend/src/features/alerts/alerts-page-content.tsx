@@ -29,7 +29,7 @@ import { useAlerts } from "./use-alerts";
 
 type StateFilter = "all" | "open" | "resolved";
 const ALL = "__all__";
-const METRICS: Metric[] = ["temperature", "humidity", "gas"];
+const METRICS: Metric[] = ["temperature", "humidity", "gas", "ssh"];
 
 function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (

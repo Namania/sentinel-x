@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { formatNumber } from "@/lib/format-number";
 import { ALERTS_NOW_MS, makeAlert } from "@/test/alerts";
 import {
+  attemptsLabel,
   boundLabel,
   dayLabel,
   describeAlert,
@@ -9,6 +10,7 @@ import {
   excessLabel,
   formatDuration,
   groupByDay,
+  ipFromDevice,
   peakLabel,
   sortAlerts,
   summarize,
@@ -126,5 +128,25 @@ describe("alerts api helpers", () => {
     );
     expect(summary).toEqual({ open: 1, last24h: 2, topMetric: "humidity" });
     expect(summarize([], now)).toEqual({ open: 0, last24h: 0, topMetric: null });
+  });
+
+  it("describes an ssh alert by its attempts and its ip", () => {
+    const one = makeAlert({
+      metric: "ssh",
+      device_id: "ip:203.0.113.5",
+      threshold: 0,
+      opened_value: 1,
+      peak_value: 1,
+    });
+    const three = { ...one, peak_value: 3 };
+    expect(describeAlert(one)).toBe("SSH : 1 tentative refusée depuis 203.0.113.5");
+    expect(describeAlert(three)).toBe("SSH : 3 tentatives refusées depuis 203.0.113.5");
+    expect(peakLabel(three)).toBe("3 tentatives");
+    expect(boundLabel(three)).toBeNull();
+    expect(excessLabel(three)).toBeNull();
+    expect(ipFromDevice(makeAlert({ device_id: "ip:fe80::1" }))).toBe("fe80::1");
+    expect(ipFromDevice(makeAlert({ device_id: "esp-interieur" }))).toBe("esp-interieur");
+    expect(attemptsLabel(1)).toBe("1 tentative");
+    expect(summarize([three], ALERTS_NOW_MS).topMetric).toBe("ssh");
   });
 });
