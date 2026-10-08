@@ -1,9 +1,8 @@
 # Known faces: whitelist and blacklist
 
 Drop reference photos directly in this folder for the **whitelist** (people the dashboard reports
-by name instead of "INTRUS"). Drop them in `blacklist/` for the **blacklist** (people who must
-raise an alert the moment the camera sees them - the same kind of alert as a gas spike or an
-over-temperature, visible in `/alertes` and able to trigger the buzzer).
+by name instead of "INTRUS"). Drop them in `blacklist/` for the **blacklist** (people the camera
+view flags distinctly the moment it sees them).
 
 In both folders, the file name without its extension and trailing number is the name shown in the
 dashboard: `kevan.jpg`, `kevan1.jpg`, `kevan_2.jpg` and `kevan (2).jpg` are all "kevan".
@@ -17,10 +16,9 @@ dashboard: `kevan.jpg`, `kevan1.jpg`, `kevan_2.jpg` and `kevan (2).jpg` are all 
 - Whitelist: anyone whose face doesn't match a photo here is reported as an intruder, and so is
   anyone whose face can't be read (turned away, in profile, too far) before being recognised once.
   Once recognised, a person keeps their name while they are followed, even turned away.
-- Blacklist: a match opens an "intruder" alert for that person (`/alertes`, and the buzzer if
-  `BUZZER_TRIGGERS` includes `intruder`, which it does by default); the alert resolves itself once
-  they leave the frame. The same person can be in both lists - the blacklist alert does not
-  depend on whether they also match the whitelist.
+- Blacklist: a match is shown on the camera view only (violet frame, « MÉCHANT » badge); it opens
+  no alert and never rings the buzzer. The same person can be in both lists - the blacklist match
+  does not depend on whether they also match the whitelist.
 
 This directory's photos are personal data - do not commit real teammate photos to a public
 repository. Add real photos locally or via `.env`/deploy-time file transfer instead.

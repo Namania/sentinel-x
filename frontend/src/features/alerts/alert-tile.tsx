@@ -43,11 +43,7 @@ export function AlertTile({ alert, nowMs, size = "sm" }: Props) {
               {alert.direction === "high" ? "dépasse la borne de" : "sous la borne de"} {bound}
             </span>
           ) : (
-            <span className="text-muted-foreground text-sm">
-              {alert.metric === "intruder"
-                ? "visage reconnu par la caméra"
-                : "alerte signalée par l'ESP"}
-            </span>
+            <span className="text-muted-foreground text-sm">alerte signalée par l'ESP</span>
           )}
           {excess && (
             <span className="bg-destructive/10 text-destructive rounded-md px-1.5 py-0.5 text-xs font-medium tabular-nums">

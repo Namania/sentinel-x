@@ -15,7 +15,6 @@ const REASONS: Record<Metric, string> = {
   gas: "gaz",
   temperature: "température",
   humidity: "humidité",
-  intruder: "intrus",
 };
 
 /** « Sirène active : gaz », « Sirène coupée jusqu'à 09:27 », « Sirène au repos ». */

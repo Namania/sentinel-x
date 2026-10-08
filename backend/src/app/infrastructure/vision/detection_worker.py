@@ -4,10 +4,6 @@ It is just another consumer of `CameraRelay.frames()` - the same fan-out the HTT
 so it does not open a second connection to the camera. The models are synchronous and
 CPU-bound, so each analysis runs in a worker thread (`asyncio.to_thread`) to avoid blocking the
 event loop; the throttle keeps a slow Raspberry Pi from falling behind the live video.
-
-A blacklisted face also opens/resolves an "intruder" alert (`TrackBlacklistAlerts`), the same kind
-the dashboard already shows for sensors out of bounds - a blacklisted person is reported the same
-way a gas spike is.
 """
 
 from __future__ import annotations
@@ -17,7 +13,6 @@ import logging
 import time
 from collections.abc import AsyncIterator
 
-from app.application.alerts.intruder import TrackBlacklistAlerts
 from app.application.ports.event_broadcaster import EventBroadcaster
 from app.application.ports.vision_analyzer import VisionAnalyzer
 from app.domain.detection import DetectionSnapshot, PersonDetection
@@ -34,13 +29,11 @@ class DetectionWorker:
         analyzer: VisionAnalyzer,
         broadcaster: EventBroadcaster,
         interval_seconds: float = DEFAULT_INTERVAL_SECONDS,
-        blacklist_alerts: TrackBlacklistAlerts | None = None,
     ) -> None:
         self._frames = frames
         self._analyzer = analyzer
         self._broadcaster = broadcaster
         self._interval_seconds = interval_seconds
-        self._blacklist_alerts = blacklist_alerts
         self._latest: DetectionSnapshot | None = None
 
     @property
@@ -65,23 +58,6 @@ class DetectionWorker:
         snapshot = DetectionSnapshot.now(tuple(people))
         self._latest = snapshot
         await self._broadcaster.broadcast(_to_event(snapshot))
-        if self._blacklist_alerts is not None:
-            await self._sync_blacklist_alerts(snapshot)
-
-    async def _sync_blacklist_alerts(self, snapshot: DetectionSnapshot) -> None:
-        assert self._blacklist_alerts is not None
-        seen = frozenset(
-            person.blacklisted_as for person in snapshot.people if person.blacklisted_as
-        )
-        confidence = {
-            person.blacklisted_as: person.blacklist_confidence or 1.0
-            for person in snapshot.people
-            if person.blacklisted_as
-        }
-        try:
-            await self._blacklist_alerts.sync(seen, confidence)
-        except Exception:  # noqa: BLE001 - one failed sync must not stop the worker
-            logger.exception("blacklist alert sync failed")
 
 
 def _to_event(snapshot: DetectionSnapshot) -> dict:

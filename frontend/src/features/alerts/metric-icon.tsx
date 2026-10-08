@@ -1,4 +1,4 @@
-import { Droplets, ShieldAlert, Thermometer, Wind, type LucideIcon } from "lucide-react";
+import { Droplets, Thermometer, Wind, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { METRIC_COLORS, type Metric } from "./alerts-api";
 
@@ -6,7 +6,6 @@ const ICONS: Record<Metric, LucideIcon> = {
   temperature: Thermometer,
   humidity: Droplets,
   gas: Wind,
-  intruder: ShieldAlert,
 };
 
 /** The metric's pictogram in its colour, on a soft disc; decorative (the label says the metric). */

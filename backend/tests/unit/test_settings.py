@@ -114,7 +114,6 @@ def test_siren_defaults_and_trigger_accessor():
     assert settings.triggers() == (
         Trigger("gas", None),
         Trigger("temperature", "high"),
-        Trigger("intruder", None),
     )
 
 

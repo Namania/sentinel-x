@@ -71,3 +71,9 @@ def test_an_expired_mute_is_forgotten():
 
 def test_empty_triggers_never_sound():
     assert decide([alert("gas", "high")], (), None, NOW).on is False
+
+
+def test_a_metric_without_bounds_is_not_a_trigger():
+    """Only the sensor metrics can ring the buzzer: "intruder" was removed with the camera alert."""
+    with pytest.raises(ValueError, match="unknown metric"):
+        parse_triggers("gas,intruder")

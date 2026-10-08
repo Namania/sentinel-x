@@ -99,51 +99,6 @@ async def test_has_blacklisted_true_when_any_person_is_blacklisted():
     assert broadcaster.broadcasts[0]["data"]["people"][1]["blacklisted_as"] == "marc"
 
 
-async def test_syncs_blacklist_alerts_from_the_snapshot():
-    class RecordingBlacklistAlerts:
-        def __init__(self) -> None:
-            self.calls: list[tuple[frozenset[str], dict[str, float]]] = []
-
-        async def sync(self, seen, confidence):
-            self.calls.append((seen, confidence))
-
-    analyzer = FakeAnalyzer()
-    analyzer.queue([KNOWN_PERSON, BLACKLISTED])
-    blacklist_alerts = RecordingBlacklistAlerts()
-    worker = DetectionWorker(
-        frames_from([b"frame-a"]),
-        analyzer,
-        RecordingBroadcaster(),
-        interval_seconds=0,
-        blacklist_alerts=blacklist_alerts,
-    )
-
-    await worker.run()
-
-    assert blacklist_alerts.calls == [(frozenset({"marc"}), {"marc": 0.95})]
-
-
-async def test_a_failed_blacklist_sync_does_not_stop_the_worker():
-    class FailingBlacklistAlerts:
-        async def sync(self, seen, confidence):
-            raise RuntimeError("database exploded")
-
-    analyzer = FakeAnalyzer()
-    analyzer.queue([BLACKLISTED])
-    broadcaster = RecordingBroadcaster()
-    worker = DetectionWorker(
-        frames_from([b"frame-a"]),
-        analyzer,
-        broadcaster,
-        interval_seconds=0,
-        blacklist_alerts=FailingBlacklistAlerts(),
-    )
-
-    await worker.run()
-
-    assert len(broadcaster.broadcasts) == 1  # the vision.detection event still went out
-
-
 async def test_throttles_analysis_to_the_configured_interval():
     analyzer = FakeAnalyzer()
     broadcaster = RecordingBroadcaster()

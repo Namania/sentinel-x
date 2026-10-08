@@ -155,7 +155,6 @@ def _start_vision_worker(app: FastAPI, settings: Settings) -> asyncio.Task[None]
 
     import cv2
 
-    from app.application.alerts.intruder import TrackBlacklistAlerts
     from app.infrastructure.vision.detection_worker import DetectionWorker
     from app.infrastructure.vision.face_whitelist import FaceEncoder, FaceList
     from app.infrastructure.vision.light_analyzer import LightVisionAnalyzer
@@ -186,21 +185,11 @@ def _start_vision_worker(app: FastAPI, settings: Settings) -> asyncio.Task[None]
     whitelist = faces[1] if faces is not None else None
     blacklisted = blacklist[1] if blacklist is not None else None
     analyzer = LightVisionAnalyzer(detector, faces, blacklist)
-    blacklist_alerts = (
-        TrackBlacklistAlerts(
-            uow_factory=lambda: SqlAlchemyUnitOfWork(app.state.session_factory),
-            broadcaster=app.state.hub,
-            on_alerts_changed=app.state.siren.refresh,
-        )
-        if blacklisted is not None
-        else None
-    )
     worker = DetectionWorker(
         frames=camera_relay.frames(),
         analyzer=analyzer,
         broadcaster=app.state.hub,
         interval_seconds=settings.vision_interval_seconds,
-        blacklist_alerts=blacklist_alerts,
     )
     logger.info(
         "vision worker starting (face identification %s, %d known face(s), %d blacklisted)",

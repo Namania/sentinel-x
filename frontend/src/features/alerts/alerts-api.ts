@@ -2,7 +2,7 @@ import { formatDuration, formatNumber } from "@/lib/format-number";
 
 export { formatDuration };
 
-export type Metric = "temperature" | "humidity" | "gas" | "intruder";
+export type Metric = "temperature" | "humidity" | "gas";
 export type Direction = "low" | "high";
 
 export type Alert = {
@@ -33,35 +33,24 @@ export const METRIC_LABELS: Record<Metric, string> = {
   temperature: "Température",
   humidity: "Humidité",
   gas: "Gaz",
-  intruder: "Intrus",
 };
 export const UNITS: Record<Metric, string> = {
   temperature: "°C",
   humidity: "%",
   gas: "mV",
-  intruder: "",
 };
 export const DIGITS: Record<Metric, number> = {
   temperature: 1,
   humidity: 0,
   gas: 0,
-  intruder: 0,
 };
 
 export function isOpen(alert: Alert): boolean {
   return alert.resolved_at === null;
 }
 
-/** The blacklisted name from an "intruder" alert's `device_id` (`face:marc` -> "marc"). */
-export function blacklistedName(alert: Alert): string {
-  return alert.device_id.startsWith("face:")
-    ? alert.device_id.slice("face:".length)
-    : alert.device_id;
-}
-
 /** « 31,2 °C > 30 °C » — the peak against the bound, or « alerte ESP » when only the flag spoke. */
 export function valueAgainstBound(alert: Alert): string {
-  if (alert.metric === "intruder") return blacklistedName(alert);
   if (alert.metric === "gas" && alert.threshold === 0) {
     // Raised by the device's own flag: no bound to compare with, show the level if we have one.
     return alert.peak_value > 0
@@ -79,7 +68,6 @@ export function valueAgainstBound(alert: Alert): string {
 /** « Température 31,2 °C > 30 °C » — or « Gaz : alerte ESP » when only the device flag spoke. */
 export function describeAlert(alert: Alert): string {
   const label = METRIC_LABELS[alert.metric];
-  if (alert.metric === "intruder") return `${label} : ${valueAgainstBound(alert)}`;
   if (alert.metric === "gas" && alert.threshold === 0)
     return `${label} : ${valueAgainstBound(alert)}`;
   return `${label} ${valueAgainstBound(alert)}`;
@@ -113,26 +101,22 @@ export const METRIC_COLORS: Record<Metric, string> = {
   temperature: "var(--metric-temperature)",
   humidity: "var(--metric-humidity)",
   gas: "var(--metric-gas)",
-  intruder: "var(--destructive, #dc2626)",
 };
 
-/** « 31,2 °C », « 78 % », « 1 800 mV » — the peak with its unit, or the blacklisted name. */
+/** « 31,2 °C », « 78 % », « 1 800 mV » — the peak with its unit. */
 export function peakLabel(alert: Alert): string {
-  if (alert.metric === "intruder") return blacklistedName(alert);
   return `${formatNumber(alert.peak_value, DIGITS[alert.metric])} ${UNITS[alert.metric]}`;
 }
 
-/** « 30 °C » — the bound as the settings state it; null for a flag-only gas alert or an intruder. */
+/** « 30 °C » — the bound as the settings state it; null for a flag-only gas alert. */
 export function boundLabel(alert: Alert): string | null {
-  if (alert.metric === "intruder") return null;
   if (alert.metric === "gas" && alert.threshold === 0) return null;
   const digits = Number.isInteger(alert.threshold) ? 0 : DIGITS[alert.metric];
   return `${formatNumber(alert.threshold, digits)} ${UNITS[alert.metric]}`;
 }
 
-/** « +8 pts », « +3,0 °C », « −2 pts » — how far the peak went past the bound; null for an intruder. */
+/** « +8 pts », « +3,0 °C », « −2 pts » — how far the peak went past the bound. */
 export function excessLabel(alert: Alert): string | null {
-  if (alert.metric === "intruder") return null;
   if (alert.metric === "gas" && alert.threshold === 0) return null;
   const delta = alert.peak_value - alert.threshold;
   const digits = DIGITS[alert.metric];
@@ -184,7 +168,7 @@ export function groupByDay(alerts: Alert[], nowMs: number): DayGroup[] {
 export type AlertSummary = { open: number; last24h: number; topMetric: Metric | null };
 
 export function summarize(alerts: Alert[], nowMs: number): AlertSummary {
-  const counts: Record<Metric, number> = { temperature: 0, humidity: 0, gas: 0, intruder: 0 };
+  const counts: Record<Metric, number> = { temperature: 0, humidity: 0, gas: 0 };
   let last24h = 0;
   for (const a of alerts) {
     counts[a.metric] += 1;
