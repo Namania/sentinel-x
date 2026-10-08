@@ -69,13 +69,16 @@ services:
       # Keep the frame rate steady in dim light (the control's name depends on the kernel; the
       # entrypoint skips the ones this camera does not expose).
       WEBCAM_CONTROLS: ${WEBCAM_CONTROLS:-exposure_auto_priority=0,exposure_dynamic_framerate=0}
+      # Optional frame-rate cap (--desired-fps). Empty by default: some Logitech C270 units
+      # answer "Inappropriate ioctl" to the rate request and µStreamer then never captures.
+      # The browser drops frames it cannot draw, so the camera's native rate is fine.
+      WEBCAM_FPS: ${WEBCAM_FPS:-}
     command:
       - --device=/dev/video0
       - --host=0.0.0.0
       - --port=8080
       - --format=${WEBCAM_FORMAT:-MJPEG}
       - --resolution=${WEBCAM_RESOLUTION:-960x720}
-      - --desired-fps=${WEBCAM_FPS:-10}
       - --tcp-nodelay
       - --workers=2
     restart: unless-stopped
