@@ -1,7 +1,7 @@
 import { http, HttpResponse, ws } from "msw";
 import { setupServer } from "msw/node";
 import { decodeJwtPayload } from "@/features/auth/jwt";
-import { alertsFixture } from "./alerts";
+import { ALERTS_NOW_MS, alertsFixture, makeAlert } from "./alerts";
 import { accessTokenExpiringIn, makeJwt } from "./jwt";
 import { bucketsFixture, DEVICE, makeReading, NOW_MS, readingsFixture } from "./sensors";
 import { healthFixture, SERVER_NOW_MS } from "./server-health";
@@ -148,6 +148,27 @@ export const handlers = [
       .filter((a) => (device ? a.device_id === device : true))
       .filter((a) => status === "all" || (status === "open") === (a.resolved_at === null));
     return HttpResponse.json(rows.slice(0, limit));
+  }),
+  http.post("/api/alerts/:id/resolve", ({ request, params }) => {
+    if (!isValidAccessToken(bearer(request))) return unauthenticated();
+    if (params.id === "closed") {
+      return HttpResponse.json(
+        { detail: "Only an open SSH alert can be closed by hand" },
+        { status: 409 },
+      );
+    }
+    return HttpResponse.json(
+      makeAlert({
+        id: String(params.id),
+        metric: "ssh",
+        device_id: "ip:203.0.113.5",
+        threshold: 0,
+        opened_value: 1,
+        peak_value: 3,
+        resolved_at: new Date(ALERTS_NOW_MS).toISOString(),
+        resolved_value: 3,
+      }),
+    );
   }),
   http.get("/api/alerts/summary", ({ request }) =>
     isValidAccessToken(bearer(request))

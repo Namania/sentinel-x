@@ -65,5 +65,8 @@ export function useAlerts(enabled = true) {
     };
   }, [authFetch, resyncKey]);
 
-  return { status, alerts, open: alerts.filter(isOpen), connected };
+  // For a change the caller already knows (a manual close): the event will confirm it.
+  const apply = useCallback((alert: Alert) => setAlerts((current) => upsert(current, alert)), []);
+
+  return { status, alerts, open: alerts.filter(isOpen), connected, apply };
 }

@@ -15,6 +15,7 @@ import { DEVICES_PATH, type Device } from "@/features/metrics/metrics-api";
 import { useNow } from "@/lib/use-now";
 import { AlertRow } from "./alert-row";
 import { AlertTile } from "./alert-tile";
+import { CloseAlertButton } from "./close-alert-button";
 import { SirenBar } from "./siren-bar";
 import {
   ALERTS_LIMIT,
@@ -46,7 +47,7 @@ function Stat({ label, value, hint }: { label: string; value: string; hint?: str
 /** The /alertes page: a summary, filters, open alerts as tiles, the history as a day timeline. */
 export function AlertsPageContent({ nowMs }: { nowMs?: number }) {
   const { authFetch } = useAuth();
-  const { status, alerts } = useAlerts();
+  const { status, alerts, apply } = useAlerts();
   const tick = useNow();
   const now = nowMs ?? tick;
   const [devices, setDevices] = useState<Device[]>([]);
@@ -168,7 +169,15 @@ export function AlertsPageContent({ nowMs }: { nowMs?: number }) {
           </h2>
           <ul className="space-y-2">
             {open.map((a) => (
-              <AlertTile key={a.id} alert={a} nowMs={now} size="lg" />
+              <AlertTile
+                key={a.id}
+                alert={a}
+                nowMs={now}
+                size="lg"
+                actions={
+                  a.metric === "ssh" ? <CloseAlertButton alert={a} onResolved={apply} /> : undefined
+                }
+              />
             ))}
           </ul>
         </section>

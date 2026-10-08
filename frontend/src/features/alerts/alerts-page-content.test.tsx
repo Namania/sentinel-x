@@ -15,6 +15,14 @@ function renderPage() {
       HttpResponse.json([
         makeAlert({ id: "open-temp" }),
         makeAlert({
+          id: "open-ssh",
+          metric: "ssh",
+          device_id: "ip:203.0.113.5",
+          threshold: 0,
+          opened_value: 1,
+          peak_value: 3,
+        }),
+        makeAlert({
           id: "done-hum",
           device_id: "esp-exterieur",
           metric: "humidity",
@@ -44,7 +52,7 @@ describe("AlertsPageContent", () => {
     renderPage();
     expect(await screen.findByText("Ouvertes maintenant")).toBeInTheDocument();
     const open = within(screen.getByRole("heading", { name: "En cours" }).parentElement!);
-    expect(open.getAllByRole("listitem")).toHaveLength(1);
+    expect(open.getAllByRole("listitem")).toHaveLength(2);
     expect(open.getByText("31,2 °C")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Historique" })).toBeInTheDocument();
     const today = within(screen.getByRole("list", { name: "Alertes résolues, Aujourd'hui" }));
@@ -66,6 +74,9 @@ describe("AlertsPageContent", () => {
     await user.click(screen.getByRole("radio", { name: "Humidité" }));
     expect(screen.queryByRole("heading", { name: "En cours" })).toBeNull();
     expect(screen.getByRole("heading", { name: "Historique" })).toBeInTheDocument();
+    await user.click(screen.getByRole("radio", { name: "SSH" }));
+    expect(screen.getByRole("heading", { name: "En cours" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Historique" })).toBeNull();
     await user.click(screen.getByRole("radio", { name: "Toutes les métriques" }));
     await user.click(screen.getByRole("combobox", { name: "Appareil" }));
     await user.click(await screen.findByRole("option", { name: "esp-exterieur" }));
@@ -109,5 +120,21 @@ describe("AlertsPageContent", () => {
     expect(
       screen.getByText("Seules les 500 alertes les plus récentes sont affichées."),
     ).toBeInTheDocument();
+  });
+
+  it("closes an ssh alert by hand and moves it to the history", async () => {
+    const user = userEvent.setup();
+    renderPage();
+    const open = within((await screen.findByRole("heading", { name: "En cours" })).parentElement!);
+    const tiles = open.getAllByRole("listitem");
+    expect(within(tiles[0]).queryByRole("button", { name: "Clôturer" })).toBeNull(); // température
+    const close = within(tiles[1]).getByRole("button", { name: "Clôturer" });
+    await user.click(close);
+    const history = within(
+      await screen.findByRole("list", { name: "Alertes résolues, Aujourd'hui" }),
+    );
+    expect(history.getAllByRole("listitem")).toHaveLength(2);
+    expect(history.getByText("SSH : 3 tentatives refusées depuis 203.0.113.5")).toBeInTheDocument();
+    expect(open.getAllByRole("listitem")).toHaveLength(1);
   });
 });

@@ -30,6 +30,11 @@ export function alertsPath(limit = ALERTS_LIMIT): string {
   return `${ALERTS_PATH}?limit=${limit}`;
 }
 
+/** POST here closes an open ssh alert by hand (404 unknown, 409 not ssh or already closed). */
+export function resolveAlertPath(id: string): string {
+  return `${ALERTS_PATH}/${id}/resolve`;
+}
+
 export const METRIC_LABELS: Record<Metric, string> = {
   temperature: "Température",
   humidity: "Humidité",

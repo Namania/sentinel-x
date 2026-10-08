@@ -166,7 +166,9 @@ appareils : `ALERT_TEMPERATURE_MIN_C=10`, `ALERT_TEMPERATURE_MAX_C=30`, `ALERT_H
 `GET /api/alerts?status=open|resolved|all&device_id=…&limit=…` (ouvertes d'abord),
 `GET /api/alerts/summary` → `{"open": n}`. Le Dashboard, la page `/alertes` et le badge de la nav
 suivent la liste en direct. La métrique `ssh` (connexions SSH refusées, voir « Accès SSH au Pi »)
-suit le même cycle ; quand son compteur de tentatives monte, l'API émet `alert.updated`.
+suit le même cycle ; quand son compteur de tentatives monte, l'API émet `alert.updated`. Elle peut
+aussi être clôturée à la main : bouton « Clôturer » sur `/alertes`, soit `POST /api/alerts/{id}/resolve`
+(404 inconnue, 409 déjà résolue ou alerte capteur).
 
 **Sirène.** L'API publie l'état du buzzer sur le topic MQTT **retenu** `sentinel/cmd/buzzer`
 (QoS 1) : `{"on": true, "reason": "gas", "open": 2, "muted_until": null, "at": "…"}`. `on` est vrai

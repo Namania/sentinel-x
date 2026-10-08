@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { formatTime } from "@/lib/format-number";
 import { cn } from "@/lib/utils";
 import {
@@ -11,10 +12,10 @@ import {
 } from "./alerts-api";
 import { MetricIcon } from "./metric-icon";
 
-type Props = { alert: Alert; nowMs: number; size?: "sm" | "lg" };
+type Props = { alert: Alert; nowMs: number; size?: "sm" | "lg"; actions?: ReactNode };
 
 /** An open alert: metric colour on the edge, the peak in large type, the bound and the excess. */
-export function AlertTile({ alert, nowMs, size = "sm" }: Props) {
+export function AlertTile({ alert, nowMs, size = "sm", actions }: Props) {
   const bound = boundLabel(alert);
   const excess = excessLabel(alert);
   const since = sinceLabel(nowMs - Date.parse(alert.opened_at));
@@ -67,6 +68,7 @@ export function AlertTile({ alert, nowMs, size = "sm" }: Props) {
         <span className="text-muted-foreground mt-0.5 block tabular-nums">
           depuis {since} · à {formatTime(Date.parse(alert.opened_at))}
         </span>
+        {actions && <div className="mt-2 flex justify-end">{actions}</div>}
       </div>
     </li>
   );
