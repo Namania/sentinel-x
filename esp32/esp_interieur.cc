@@ -120,23 +120,20 @@ void publierMesures(float temperature, float humidite, int gaz)
     etat = "ok";
   }
 
-  String payload = "{" temperature ":";
+  String payload = "{\"temperature\":";
   payload += isnan(temperature) ? String("null") : String(temperature, 1);
-  payload += "," humidite ":";
+  payload += ",\"humidite\":";
   payload += isnan(humidite) ? String("null") : String(humidite, 0);
-  payload += "," gaz_mv ":";
+  payload += ",\"gaz_mv\":";
   payload += String(gaz);
-  payload += "," etat_gaz ":"
-             ";
-      payload += etat;
-  payload += ""
-}
-";
+  payload += ",\"etat_gaz\":\"";
+  payload += etat;
+  payload += "\"}";
 
-    if (!mqtt.publish(MQTT_TOPIC, payload.c_str()))
-{
-  Serial.println(" [MQTT] échec de publication");
-}
+  if (!mqtt.publish(MQTT_TOPIC, payload.c_str()))
+  {
+    Serial.println(" [MQTT] échec de publication");
+  }
 }
 
 // [AJOUT] Appelée automatiquement quand un message arrive sur le topic du buzzer
