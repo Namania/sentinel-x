@@ -50,6 +50,10 @@ services:
       target: prod
     ports:
       - "8080:80"
+      # HTTPS, served only once certs/server.crt exists (make tls-init; see README « HTTPS »).
+      - "8443:443"
+    volumes:
+      - ./certs:/etc/nginx/certs:ro
     depends_on:
       - api
     restart: unless-stopped

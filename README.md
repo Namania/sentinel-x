@@ -49,6 +49,28 @@ tentatives), résolue après `SSH_ALERT_QUIET_MINUTES` (10) sans nouvelle tentat
 dernières heures, puis reprend au curseur journald : rien n'est perdu pendant un `make deploy`.
 `make ssh-log-logs` suit ses logs ; `systemctl --user disable --now sentinel-ssh-log` le retire.
 
+## HTTPS
+
+Le dashboard est servi en HTTP sur 8080 et, dès qu'un certificat existe, en HTTPS sur **8443**.
+Le certificat est signé par une petite autorité (CA) propre au projet, à installer une fois sur
+chaque navigateur de l'équipe : ensuite plus d'avertissement, renouvellements compris.
+
+```sh
+make tls-init                                    # sur le Pi : certs/ca.crt, certs/server.crt + server.key
+docker compose up -d --force-recreate web        # nginx voit le certificat et ouvre le 443
+sudo ufw allow from 192.168.0.0/24 to any port 8443 proto tcp comment "sentinel-x https"
+```
+
+`TLS_IP` (défaut `192.168.0.70`) et `TLS_HOSTNAMES` (défaut `sentinel-x sentinel-x.local`) fixent les
+noms du certificat ; le relancer renouvelle le certificat serveur (825 jours) en gardant la CA.
+`certs/` est ignoré par git : `ca.key` ne quitte jamais le Pi. Sur les postes, installer
+`certs/ca.crt` (macOS : trousseau Système, « Toujours faire confiance » ; Windows : « Autorités de
+certification racines de confiance » ; Android et iOS : profil de configuration), puis ouvrir
+`https://192.168.0.70:8443/`. Le front construit `wss://` et `/api` à partir de la page, rien à
+régler. Le port 8080 (HTTP) reste servi : l'agent SSH y parle en `127.0.0.1`, que ufw ne filtre
+pas. Pour que le LAN n'ait plus que le HTTPS, retirer la règle ufw du 8080 (`sudo ufw status
+numbered` puis `sudo ufw delete <n>`) : l'agent continue de fonctionner.
+
 ## Développer
 
 Avec Docker, tout le stack en rechargement à chaud (uvicorn `--reload` et Vite HMR) :

@@ -1,3 +1,6 @@
 backend/.env
 
 __pycache__/
+
+# TLS material created by make tls-init (private keys!)
+certs/

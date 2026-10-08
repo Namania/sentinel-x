@@ -20,3 +20,7 @@ RUN pnpm build
 FROM nginx:alpine AS prod
 COPY --from=build /app/dist /usr/share/nginx/html
 COPY nginx/default.conf /etc/nginx/conf.d/default.conf
+COPY nginx/locations.conf /etc/nginx/snippets/locations.conf
+# HTTPS server, enabled at start only when the certificate is mounted (nginx/enable-tls.sh).
+COPY nginx/tls.conf /etc/nginx/tls.conf.available
+COPY nginx/enable-tls.sh /docker-entrypoint.d/10-enable-tls.sh

@@ -9,10 +9,11 @@
 #   make ssh-log-logs     follow that agent's logs
 #   make docker-size   what Docker takes on disk (images, containers, volumes, build cache)
 #   make docker-clean  reclaim space: unused images, stopped containers, build cache; volumes are kept
+#   make tls-init      on the Pi: create the CA and the certificate so nginx serves HTTPS on 8443
 COMPOSE      := docker compose
 COMPOSE_DEV  := $(COMPOSE) -f compose.yml -f compose.dev.yml
 
-.PHONY: dev deploy down logs ssh-add ssh-remove ssh-log-install ssh-log-logs docker-size docker-clean
+.PHONY: dev deploy down logs ssh-add ssh-remove ssh-log-install ssh-log-logs docker-size docker-clean tls-init
 
 dev:
 	$(COMPOSE_DEV) up --build --renew-anon-volumes
@@ -51,3 +52,6 @@ docker-clean:
 	docker system prune -a -f
 	docker builder prune -a -f
 	docker system df
+
+tls-init:
+	@sh scripts/tls-init.sh
