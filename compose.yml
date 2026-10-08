@@ -16,7 +16,11 @@ services:
       retries: 10
     restart: unless-stopped
 
+  # Production images come from Docker Hub (built for arm64 by .github/workflows/publish.yml on every
+  # push to main): set IMAGE_NAMESPACE in a root .env on the Pi and `make deploy` pulls them. Without
+  # it the `build:` sections tag local builds as local/sentinel-x-*: that is what `make dev` uses.
   api:
+    image: ${IMAGE_NAMESPACE:-local}/sentinel-x-api:${IMAGE_TAG:-latest}
     build:
       context: ./backend
       target: prod
@@ -44,6 +48,7 @@ services:
     restart: unless-stopped
 
   web:
+    image: ${IMAGE_NAMESPACE:-local}/sentinel-x-web:${IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: frontend/Dockerfile
@@ -60,6 +65,7 @@ services:
   # CAMERA_STREAM_URL=http://webcam:8080/stream in backend/.env. WEBCAM_DEVICE, WEBCAM_FORMAT,
   # WEBCAM_RESOLUTION and WEBCAM_FPS can be set in the shell or a root .env (defaults below).
   webcam:
+    image: ${IMAGE_NAMESPACE:-local}/sentinel-x-webcam:${IMAGE_TAG:-latest}
     build: ./.docker/webcam
     devices:
       - "${WEBCAM_DEVICE:-/dev/video0}:/dev/video0"

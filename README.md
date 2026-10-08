@@ -7,7 +7,7 @@ Backend FastAPI (clean architecture, JWT auth, WebSocket, relais caméra) et fro
 
 ```sh
 cp backend/.env.example backend/.env   # puis renseigner POSTGRES_PASSWORD et JWT_SECRET
-make deploy                             # git pull puis docker compose up -d --build (images de production)
+make deploy                             # git pull, pull des images Docker Hub, docker compose up -d (voir « Images »)
 docker compose exec api create-user     # crée ton utilisateur (email + mot de passe demandés)
 scripts/smoke.sh                        # create-user → login → me → ws ping
 ```
@@ -48,6 +48,21 @@ tentatives), résolue après `SSH_ALERT_QUIET_MINUTES` (10) sans nouvelle tentat
 `BUZZER_TRIGGERS` pour qu'elle fasse sonner le buzzer. Au premier démarrage l'agent rejoue les 24
 dernières heures, puis reprend au curseur journald : rien n'est perdu pendant un `make deploy`. Il parle à l'API en HTTPS local avec la CA du projet
 (relancer `make ssh-log-install` après `make tls-init`). `make ssh-log-logs` suit ses logs ; `systemctl --user disable --now sentinel-ssh-log` le retire.
+
+## Images
+
+Les images de production (`api`, `web`, `webcam`) sont construites pour `linux/arm64` par GitHub
+Actions (`.github/workflows/publish.yml`) à chaque push sur `main`, et poussées sur Docker Hub sous
+`<compte>/sentinel-x-api`, `-web`, `-webcam`, avec les tags `latest`, `main` et `sha-<commit>`. Le
+Pi ne construit plus rien : `make deploy` fait `git pull`, `docker compose pull` puis `up -d`.
+
+Une fois : dans le dépôt GitHub, *Settings → Secrets and variables → Actions*, ajouter les secrets
+`DOCKERHUB_USERNAME` et `DOCKERHUB_TOKEN` (token Docker Hub « Read & Write »), et la variable
+`DOCKERHUB_NAMESPACE` si les images vivent ailleurs que sous le compte. Sur le Pi, un fichier
+`.env` à la racine du dépôt avec `IMAGE_NAMESPACE=<compte>` (et `IMAGE_TAG=latest`, ou un
+`sha-…` pour épingler une version) ; `docker login` seulement si les dépôts Docker Hub sont privés.
+Sans `IMAGE_NAMESPACE`, `make deploy` refuse et `make deploy-build` construit sur le Pi comme avant.
+En développement, `make dev` construit toujours en local (images `local/sentinel-x-*`).
 
 ## HTTPS
 

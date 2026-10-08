@@ -1,6 +1,7 @@
 # sentinel-x — development and deployment shortcuts.
 #   make dev     start the stack with hot reload (API: uvicorn --reload, front: Vite HMR) on http://localhost:8080
-#   make deploy  on the Raspberry Pi: git pull, rebuild the production images, restart the stack
+#   make deploy        on the Raspberry Pi: git pull, pull the images from Docker Hub (IMAGE_NAMESPACE in .env), restart
+#   make deploy-build  same, but building the images on the Pi (no Docker Hub)
 #   make down    stop the stack (dev or prod)
 #   make logs    follow the logs
 #   make ssh-add     authorise someone's SSH public key on this account (asks for the key)
@@ -15,12 +16,19 @@
 COMPOSE      := docker compose
 COMPOSE_DEV  := $(COMPOSE) -f compose.yml -f compose.dev.yml
 
-.PHONY: dev deploy down logs ssh-add ssh-remove ssh-log-install ssh-log-logs docker-size docker-clean tls-init mqtt-user mqtt-users
+.PHONY: dev deploy deploy-build down logs ssh-add ssh-remove ssh-log-install ssh-log-logs docker-size docker-clean tls-init mqtt-user mqtt-users
 
 dev:
 	$(COMPOSE_DEV) up --build --renew-anon-volumes
 
 deploy:
+	git pull --ff-only
+	@grep -q '^IMAGE_NAMESPACE=' .env 2>/dev/null || { echo 'IMAGE_NAMESPACE manquant dans .env (le compte Docker Hub) ; sinon : make deploy-build' >&2; exit 1; }
+	$(COMPOSE) pull
+	$(COMPOSE) up -d --remove-orphans
+
+# Build on the Pi instead of pulling (no Docker Hub, or a change not yet published).
+deploy-build:
 	git pull --ff-only
 	$(COMPOSE) up -d --build --remove-orphans
 
