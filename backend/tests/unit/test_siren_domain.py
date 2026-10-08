@@ -77,3 +77,26 @@ def test_a_metric_without_bounds_is_not_a_trigger():
     """Only the sensor metrics can ring the buzzer: "intruder" was removed with the camera alert."""
     with pytest.raises(ValueError, match="unknown metric"):
         parse_triggers("gas,intruder")
+
+
+def test_ssh_is_a_valid_trigger_ranked_after_gas():
+    from app.domain.siren import REASON_ORDER
+
+    assert parse_triggers("ssh") == (Trigger("ssh", None),)
+    assert REASON_ORDER.index("gas") < REASON_ORDER.index("ssh") < REASON_ORDER.index("temperature")
+
+
+def test_an_ssh_alert_rings_only_when_ssh_is_a_trigger():
+    ssh_alert = Alert.open(
+        device_id="ip:203.0.113.5",
+        metric="ssh",
+        direction="high",
+        threshold=0.0,
+        at=datetime(2026, 10, 8, 9, 0, tzinfo=UTC),
+        value=1.0,
+    )
+    now = datetime(2026, 10, 8, 9, 1, tzinfo=UTC)
+    silent = decide([ssh_alert], parse_triggers("gas,temperature:high"), None, now)
+    ringing = decide([ssh_alert], parse_triggers("gas,ssh"), None, now)
+    assert (silent.on, silent.open) == (False, 1)
+    assert (ringing.on, ringing.reason) == (True, "ssh")

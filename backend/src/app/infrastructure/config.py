@@ -62,6 +62,9 @@ class Settings(BaseSettings):
     buzzer_triggers: str = "gas,temperature:high"
     buzzer_mute_minutes: int = Field(default=15, ge=1, le=240)
 
+    # Refused SSH connections open one alert per IP; it closes after this long without a new one.
+    ssh_alert_quiet_minutes: int = Field(default=10, ge=1, le=1440)
+
     def triggers(self) -> tuple[Trigger, ...]:
         return parse_triggers(self.buzzer_triggers)
 

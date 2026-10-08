@@ -47,7 +47,7 @@ async def list_alerts(
     _: CurrentUserIdDep,
     uow: UowDep,
     status: Annotated[AlertStatus, Query()] = "all",
-    device_id: Annotated[str | None, Query(pattern=r"^[a-z0-9-]{1,64}$")] = None,
+    device_id: Annotated[str | None, Query(pattern=r"^[a-z0-9.:-]{1,64}$")] = None,
     limit: Annotated[int, Query(ge=1, le=500)] = 100,
 ) -> list[AlertResponse]:
     async with uow as tx:

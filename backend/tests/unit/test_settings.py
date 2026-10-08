@@ -121,3 +121,10 @@ def test_unknown_buzzer_trigger_is_refused(monkeypatch):
     monkeypatch.setenv("BUZZER_TRIGGERS", "gas,pressure")
     with pytest.raises(ValidationError):
         Settings(_env_file=None, jwt_secret="x" * 32)
+
+
+def test_ssh_alert_quiet_minutes_defaults_to_ten_and_is_bounded(monkeypatch):
+    assert Settings(_env_file=None, jwt_secret="x" * 32).ssh_alert_quiet_minutes == 10
+    monkeypatch.setenv("SSH_ALERT_QUIET_MINUTES", "0")
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, jwt_secret="x" * 32)

@@ -7,9 +7,9 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import cast
 
-from app.domain.alert import METRICS, Alert, Direction, Metric
+from app.domain.alert import ALERT_METRICS, Alert, Direction, Metric
 
-REASON_ORDER: tuple[Metric, ...] = ("gas", "temperature", "humidity")
+REASON_ORDER: tuple[Metric, ...] = ("gas", "ssh", "temperature", "humidity")
 DIRECTIONS = ("low", "high")
 
 
@@ -30,7 +30,7 @@ def parse_triggers(spec: str) -> tuple[Trigger, ...]:
         if not token:
             continue
         metric, _, direction = token.partition(":")
-        if metric not in METRICS:
+        if metric not in ALERT_METRICS:
             raise ValueError(f"unknown metric in BUZZER_TRIGGERS: {token!r}")
         if direction and direction not in DIRECTIONS:
             raise ValueError(f"unknown direction in BUZZER_TRIGGERS: {token!r}")

@@ -9,9 +9,13 @@ from uuid import UUID, uuid4
 
 from app.domain.sensor_reading import SensorReading
 
-Metric = Literal["temperature", "humidity", "gas"]
+Metric = Literal["temperature", "humidity", "gas", "ssh"]
 Direction = Literal["low", "high"]
+# The sensor metrics: they have bounds, RecordReading opens and closes their alerts.
 METRICS: tuple[Metric, ...] = ("temperature", "humidity", "gas")
+# Every metric an alert can carry: "ssh" (refused SSH connections, one alert per IP) has no
+# bound; application/ssh/record.py opens, worsens and resolves it.
+ALERT_METRICS: tuple[Metric, ...] = (*METRICS, "ssh")
 
 # Hysteresis: an open alert closes only once the value is this far back inside the bound.
 TEMPERATURE_MARGIN_C = 0.5
