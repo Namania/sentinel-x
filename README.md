@@ -48,6 +48,9 @@ tentatives), résolue après `SSH_ALERT_QUIET_MINUTES` (10) sans nouvelle tentat
 `BUZZER_TRIGGERS` pour qu'elle fasse sonner le buzzer. Au premier démarrage l'agent rejoue les 24
 dernières heures, puis reprend au curseur journald : rien n'est perdu pendant un `make deploy`. Il parle à l'API en HTTPS local avec la CA du projet
 (relancer `make ssh-log-install` après `make tls-init`). `make ssh-log-logs` suit ses logs ; `systemctl --user disable --now sentinel-ssh-log` le retire.
+Si l'agent disparaît après un reboot, c'est le linger qui n'est pas activé : `make
+ssh-log-install` le (re)fait, avec un `sudo` si besoin, et affiche à la fin l'état du service et s'il
+démarrera au boot.
 
 ## Images
 

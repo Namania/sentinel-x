@@ -49,10 +49,32 @@ EOF
 systemctl --user daemon-reload
 systemctl --user enable --now "$UNIT.service"
 systemctl --user restart "$UNIT.service"
-# Without linger the user services (this one, and the rootless Docker) stop at the last logout.
-loginctl enable-linger "$(id -un)" 2>/dev/null \
-  || echo "Avertissement : loginctl enable-linger a échoué ; lancer : sudo loginctl enable-linger $(id -un)" >&2
 
-echo "Service $UNIT installé pour $(id -un)@$(hostname)."
-systemctl --user --no-pager --lines=0 status "$UNIT.service" || true
+# Linger is what makes the user services (this agent, and the rootless Docker) start at boot without
+# anyone logged in. Enabling it needs root; enable-linger without sudo fails silently, which is why
+# the agent used to vanish after a reboot. Make it reliable: try as the user, then with sudo, and
+# refuse to finish quietly if it is still off.
+USER_NAME=$(id -un)
+is_lingering() { loginctl show-user "$USER_NAME" -p Linger 2>/dev/null | grep -q "Linger=yes"; }
+if ! is_lingering; then
+  loginctl enable-linger "$USER_NAME" 2>/dev/null || true
+fi
+if ! is_lingering; then
+  echo "Activation du démarrage au boot (linger) : sudo requis une fois."
+  sudo loginctl enable-linger "$USER_NAME" || true
+fi
+
+echo
+echo "Service $UNIT installé pour $USER_NAME@$(hostname)."
+if systemctl --user --quiet is-active "$UNIT.service"; then
+  echo "  état      : actif"
+else
+  echo "  état      : INACTIF — voir: make ssh-log-logs" >&2
+fi
+if is_lingering; then
+  echo "  au reboot : oui (linger activé)"
+else
+  echo "  au reboot : NON — le linger n'a pas pu être activé. Lancer :" >&2
+  echo "              sudo loginctl enable-linger $USER_NAME" >&2
+fi
 echo "Logs : make ssh-log-logs    Retirer : systemctl --user disable --now $UNIT"
