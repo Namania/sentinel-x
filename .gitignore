@@ -4,3 +4,7 @@ __pycache__/
 
 # TLS material created by make tls-init (private keys!)
 certs/
+
+# MQTT accounts created by make mqtt-user
+.docker/mosquitto-auth/*
+!.docker/mosquitto-auth/.gitkeep

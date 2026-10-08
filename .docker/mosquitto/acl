@@ -1,0 +1,12 @@
+# Who may read or write what. "pattern" lines apply to every account; plain "topic" lines before
+# the first "user" would apply to anonymous clients only (refused here).
+# A device's account name is its id: it reads the buzzer state and writes only on its own topic
+# (sentinel/<id>), so a compromised ESP can neither impersonate another one nor ring the siren.
+# (mosquitto warns that this pattern has no %u: expected, it is the same topic for everyone.)
+pattern read sentinel/cmd/buzzer
+pattern write sentinel/%u
+
+# The API: every measurement, and the commands.
+user sentinel-api
+topic read sentinel/+
+topic write sentinel/cmd/#

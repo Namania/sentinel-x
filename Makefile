@@ -10,10 +10,12 @@
 #   make docker-size   what Docker takes on disk (images, containers, volumes, build cache)
 #   make docker-clean  reclaim space: unused images, stopped containers, build cache; volumes are kept
 #   make tls-init      on the Pi: create the CA and the certificate so nginx serves HTTPS on 8443
+#   make mqtt-user     create or update an MQTT account (a device id, or sentinel-api for the API)
+#   make mqtt-users    list the MQTT accounts
 COMPOSE      := docker compose
 COMPOSE_DEV  := $(COMPOSE) -f compose.yml -f compose.dev.yml
 
-.PHONY: dev deploy down logs ssh-add ssh-remove ssh-log-install ssh-log-logs docker-size docker-clean tls-init
+.PHONY: dev deploy down logs ssh-add ssh-remove ssh-log-install ssh-log-logs docker-size docker-clean tls-init mqtt-user mqtt-users
 
 dev:
 	$(COMPOSE_DEV) up --build --renew-anon-volumes
@@ -55,3 +57,9 @@ docker-clean:
 
 tls-init:
 	@sh scripts/tls-init.sh
+
+mqtt-user:
+	@sh scripts/mqtt-user.sh $(NAME)
+
+mqtt-users:
+	@cut -d: -f1 .docker/mosquitto-auth/passwd 2>/dev/null || echo "aucun compte (make mqtt-user)"

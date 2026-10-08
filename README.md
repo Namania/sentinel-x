@@ -143,9 +143,10 @@ En dev sur un portable le service ne démarre pas (profil `hardware` dans `compo
 
 ## Capteurs
 
-Les ESP32 publient leurs mesures sur le broker MQTT du stack (service `mosquitto`, port 1883,
-config dans `.docker/mosquitto/mosquitto.conf`). L'API s'abonne à `sentinel/+` (réglages
-`MQTT_HOST`, `MQTT_PORT`, `MQTT_TOPIC` ; sans `MQTT_HOST`, pas d'abonné) : le dernier segment du
+Les ESP32 publient leurs mesures sur le broker MQTT du stack (service `mosquitto`, port 1883 et
+8883 en MQTTS, config dans `.docker/mosquitto/`, voir « MQTT sécurisé » plus bas). L'API s'abonne à
+`sentinel/+` (réglages `MQTT_HOST`, `MQTT_PORT`, `MQTT_TOPIC`, `MQTT_USERNAME`, `MQTT_PASSWORD` ;
+sans `MQTT_HOST`, pas d'abonné) : le dernier segment du
 topic est l'identifiant de l'appareil, et le message de l'ESP intérieur est
 
 ```json
@@ -166,6 +167,34 @@ Sans matériel : `cd backend && uv run simulate-sensors` envoie des mesures fact
 (`--base-url`, `--device`, `--interval`, `--count` ; sur le Pi, derrière nginx : `--base-url http://localhost:8080/api`) ; `--backfill-minutes 1440` remplit 24 h
 d'historique (une mesure par minute) puis quitte. Tester le broker à la main :
 `docker compose exec mosquitto mosquitto_pub -t sentinel/esp1 -m '{"temperature":22.5,"humidite":48,"gaz_mv":1234,"etat_gaz":"ok"}'`.
+
+**MQTT sécurisé.** Le broker refuse les clients anonymes. Chaque compte est créé sur le Pi avec
+`make mqtt-user NAME=<nom>` (hash dans `.docker/mosquitto-auth/passwd`, ignoré par git, broker
+rechargé) ; `make mqtt-users` les liste. Le nom d'un appareil est son identifiant, donc le dernier
+segment de son topic (`sentinel/esp1` → compte `esp1`) ; l'API utilise `sentinel-api`. ACL
+(`.docker/mosquitto/acl`) : un appareil lit `sentinel/cmd/buzzer` et n'écrit que sur
+`sentinel/<son nom>` ; l'API lit `sentinel/+` et écrit `sentinel/cmd/#`. Dès que `make tls-init` a
+créé le certificat, le broker ouvre aussi **8883 en MQTTS** (même CA que le HTTPS) ; sans certificat
+il reste en 1883 seul, ce qui suffit en développement. L'API parle au broker en clair mais dans le
+réseau Docker : rien ne circule sur le LAN sans chiffrement une fois les ESP en 8883.
+
+Mise en place sur le Pi, dans l'ordre :
+
+```sh
+make deploy                                   # nouveau broker : plus personne ne peut se connecter
+make mqtt-user NAME=sentinel-api              # mot de passe à coller dans backend/.env (MQTT_PASSWORD)
+docker compose up -d api                      # l'API se reconnecte avec son compte
+make mqtt-user NAME=esp1                      # un compte par ESP (nom = dernier segment du topic)
+sudo ufw allow from 192.168.0.0/24 to any port 8883 proto tcp comment "sentinel-x mqtts"
+```
+
+Côté firmware (équipe ESP) : `WiFiClientSecure` avec `setCACert(certs/ca.crt)`, serveur
+`192.168.0.70:8883`, `mqtt.connect(clientId, "esp1", "<mot de passe>")` ; snippet complet et cas du
+`BADCERT_CN_MISMATCH` dans `docs/superpowers/specs/2026-10-08-mqtt-secure-design.md`. Tant que les
+firmwares ne sont pas migrés, le 1883 reste joignable sur le LAN avec mot de passe (`mqtt.connect`
+avec identifiants suffit) ; ensuite, retirer sa règle ufw (`sudo ufw status numbered`, `sudo ufw
+delete <n>`) : l'API continue de passer par le réseau Docker. Test à la main depuis le Pi :
+`docker compose exec mosquitto mosquitto_sub -u sentinel-api -P '<mdp>' -t 'sentinel/+' -v`.
 
 ## Dashboard
 
@@ -205,7 +234,7 @@ quand une alerte ouverte correspond à `BUZZER_TRIGGERS` (`gas,temperature:high`
 `DELETE /api/alerts/siren/mute` ; événement WebSocket `siren.state`. L'ESP32 n'a qu'à s'abonner et
 lire `on` : exemple Arduino dans `docs/superpowers/specs/2026-10-07-siren-mqtt-design.md`.
 Le payload est publié compact (`{"on":true,…}`). Test à la main :
-`docker compose exec mosquitto mosquitto_sub -t sentinel/cmd/buzzer -v`. Sans matériel : `uv run simulate-sensors --spike
+`docker compose exec mosquitto mosquitto_sub -u esp1 -P '<mdp>' -t sentinel/cmd/buzzer -v`. Sans matériel : `uv run simulate-sensors --spike
 [--spike-metric temperature|humidity|gas]` envoie 5 mesures normales, 6 hors bornes, 5 normales.
 
 ## Front
