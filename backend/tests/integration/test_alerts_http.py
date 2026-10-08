@@ -56,3 +56,9 @@ def test_limit_is_validated(client):
     headers = auth(client)
     assert client.get("/alerts?limit=0", headers=headers).status_code == 422
     assert client.get("/alerts?status=bogus", headers=headers).status_code == 422
+
+
+def test_alerts_device_filter_accepts_ip_device_ids(client):
+    headers = auth(client)
+    assert client.get("/alerts?device_id=ip:fe80::1", headers=headers).status_code == 200
+    assert client.get("/alerts?device_id=ip:203.0.113.5", headers=headers).json() == []

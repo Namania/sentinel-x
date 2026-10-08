@@ -8,6 +8,7 @@ from fastapi import FastAPI
 
 from app.application.alerts.siren import Siren
 from app.application.server.health import HealthHistory
+from app.application.ssh.record import RecordSshEvent
 from app.infrastructure.camera.httpx_source import HttpxCameraSource
 from app.infrastructure.camera.relay import CameraRelay
 from app.infrastructure.config import Settings
@@ -19,7 +20,7 @@ from app.infrastructure.mqtt.subscriber import MqttSubscriber
 from app.infrastructure.realtime.hub import ConnectionHub
 from app.infrastructure.system.monitor import ServerHealthMonitor
 from app.infrastructure.system.procfs import ProcfsSampler
-from app.presentation.http import alerts, auth, camera, health, sensors, server, users
+from app.presentation.http import alerts, auth, camera, health, sensors, server, ssh, users
 from app.presentation.http.errors import register_error_handlers
 from app.presentation.ws import router as ws_router
 
@@ -42,9 +43,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             if task is not None
         ]
         await _announce_siren(app)
+        await _start_ssh_access(app)
         try:
             yield
         finally:
+            app.state.ssh_access.close()
             app.state.siren.close()
             for task in tasks:
                 task.cancel()
@@ -74,6 +77,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         triggers=settings.triggers(),
         mute_minutes=settings.buzzer_mute_minutes,
     )
+    app.state.ssh_access = RecordSshEvent(
+        uow_factory=lambda: SqlAlchemyUnitOfWork(app.state.session_factory),
+        broadcaster=app.state.hub,
+        on_alerts_changed=app.state.siren.refresh,
+        quiet_minutes=settings.ssh_alert_quiet_minutes,
+    )
     app.state.camera_relay = _build_camera_relay(settings)
     app.state.server_health = HealthHistory()
 
@@ -84,6 +93,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(camera.router)
     app.include_router(sensors.router)
     app.include_router(alerts.router)
+    app.include_router(ssh.router)
     app.include_router(server.router)
     app.include_router(ws_router.router)
     return app
@@ -134,6 +144,14 @@ def _build_siren_publisher(settings: Settings) -> MqttSirenPublisher | None:
         return None
     connect = connect_factory(settings.mqtt_host, settings.mqtt_port, identifier="sentinel-x-siren")
     return MqttSirenPublisher(connect, settings.mqtt_buzzer_topic)
+
+
+async def _start_ssh_access(app: FastAPI) -> None:
+    """Arm the quiet timer for `ssh` alerts left open by a previous run."""
+    try:
+        await app.state.ssh_access.start()
+    except Exception:  # noqa: BLE001 - the database may not be ready; the first event arms it
+        logger.warning("ssh alerts: open alerts not reloaded at start", exc_info=True)
 
 
 async def _announce_siren(app: FastAPI) -> None:

@@ -11,6 +11,7 @@ from app.application.ports.password_hasher import PasswordHasher
 from app.application.ports.token_service import InvalidToken, TokenService
 from app.application.ports.unit_of_work import UnitOfWork
 from app.application.server.health import HealthHistory
+from app.application.ssh.record import RecordSshEvent
 from app.domain.alert import Thresholds
 from app.infrastructure.camera.relay import CameraRelay
 from app.infrastructure.config import Settings
@@ -60,6 +61,10 @@ def get_thresholds(conn: HTTPConnection) -> Thresholds:
 
 def get_siren(conn: HTTPConnection) -> Siren:
     return conn.app.state.siren
+
+
+def get_ssh_access(conn: HTTPConnection) -> RecordSshEvent:
+    return conn.app.state.ssh_access
 
 
 def decode_access_token(token: str | None, tokens: TokenService) -> UUID | None:
@@ -143,3 +148,4 @@ DeviceKeyDep = Annotated[None, Depends(require_device_key)]
 ServerHealthHistoryDep = Annotated[HealthHistory, Depends(get_server_health_history)]
 ThresholdsDep = Annotated[Thresholds, Depends(get_thresholds)]
 SirenDep = Annotated[Siren, Depends(get_siren)]
+SshAccessDep = Annotated[RecordSshEvent, Depends(get_ssh_access)]
