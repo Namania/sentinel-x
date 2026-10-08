@@ -82,7 +82,7 @@ sudo ufw allow from 192.168.0.0/24 to any port 8443 proto tcp comment "sentinel-
 
 `TLS_IP` (défaut `192.168.0.70`) et `TLS_HOSTNAMES` (défaut `sentinel-x sentinel-x.local`) fixent les
 noms du certificat ; le relancer renouvelle le certificat serveur (825 jours) en gardant la CA.
-`certs/` est ignoré par git : `ca.key` ne quitte jamais le Pi. Sur les postes, installer
+`certs/` est ignoré par git : `ca.key` ne quitte jamais le Pi. Une CA créée par une ancienne version de ce script sans l'extension `keyUsage` est régénérée automatiquement (OpenSSL récent la refuse) : dans ce cas `ca.crt` change, il faut la réinstaller sur les navigateurs et mettre `esp32/ca_cert.h` à jour. Sur les postes, installer
 `certs/ca.crt` (macOS : trousseau Système, « Toujours faire confiance » ; Windows : « Autorités de
 certification racines de confiance » ; Android et iOS : profil de configuration), puis ouvrir
 `https://192.168.0.70:8443/`. Le front construit `wss://` et `/api` à partir de la page, rien à

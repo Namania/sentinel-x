@@ -21,12 +21,28 @@ chmod 700 "$DIR"
 cd "$DIR"
 umask 077
 
-if [ ! -f ca.key ]; then
-  openssl req -x509 -newkey rsa:4096 -sha256 -days "$CA_DAYS" -nodes \
-    -keyout ca.key -out ca.crt -subj "/CN=SENTINEL-X CA" 2>/dev/null
-  echo "CA créée : $DIR/ca.crt (à installer sur chaque navigateur ; ca.key reste ici)"
-else
+# A CA used to verify a chain must carry keyUsage=keyCertSign: OpenSSL 3 (and thus Python, so the
+# SSH log agent over HTTPS) rejects one without it ("CA cert does not include key usage extension").
+# Regenerate an existing CA that lacks it; a brand-new CA means re-trusting certs/ca.crt on the
+# browsers and updating esp32/ca_cert.h.
+ca_is_valid() {
+  [ -f ca.key ] && [ -f ca.crt ] \
+    && openssl x509 -in ca.crt -noout -ext keyUsage 2>/dev/null | grep -q "Certificate Sign"
+}
+if ca_is_valid; then
   echo "CA existante réutilisée : $DIR/ca.crt"
+else
+  if [ -f ca.crt ]; then
+    echo "CA sans keyUsage (rejetée par OpenSSL récent) : régénération." >&2
+    echo "  -> ca.crt change : réinstaller certs/ca.crt sur les navigateurs et mettre" >&2
+    echo "     esp32/ca_cert.h à jour." >&2
+  fi
+  rm -f ca.key ca.crt ca.srl
+  openssl req -x509 -newkey rsa:4096 -sha256 -days "$CA_DAYS" -nodes \
+    -keyout ca.key -out ca.crt -subj "/CN=SENTINEL-X CA" \
+    -addext "basicConstraints=critical,CA:TRUE" \
+    -addext "keyUsage=critical,keyCertSign,cRLSign" 2>/dev/null
+  echo "CA créée : $DIR/ca.crt (à installer sur chaque navigateur ; ca.key reste ici)"
 fi
 
 SAN="IP:$IP, IP:127.0.0.1"
