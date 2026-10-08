@@ -43,4 +43,11 @@ describe("routing", () => {
     expect(await screen.findByRole("heading", { name: "Caméra" })).toBeInTheDocument();
     expect(document.title).toBe("Caméra · sentinel-x");
   });
+
+  it("serves the SSH access log on /ssh", async () => {
+    localStorage.setItem(REFRESH_TOKEN_KEY, VALID_REFRESH);
+    renderRoutes(routes, "/ssh");
+    expect(await screen.findByRole("heading", { name: "Accès SSH" })).toBeInTheDocument();
+    expect(document.title).toBe("Accès SSH · sentinel-x");
+  });
 });

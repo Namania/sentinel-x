@@ -17,13 +17,14 @@ async function sidebar() {
 }
 
 describe("AppSidebar", () => {
-  it("links to the dashboard, the camera and the server", async () => {
+  it("links to the dashboard, the camera, the server, the alerts and the SSH log", async () => {
     renderAuthenticated("/");
     const nav = await sidebar();
     expect(nav.getByRole("link", { name: "Dashboard" })).toHaveAttribute("href", "/");
     expect(nav.getByRole("link", { name: "Caméra" })).toHaveAttribute("href", "/camera");
     expect(nav.getByRole("link", { name: "Serveur" })).toHaveAttribute("href", "/serveur");
     expect(nav.getByRole("link", { name: /^Alertes/ })).toHaveAttribute("href", "/alertes");
+    expect(nav.getByRole("link", { name: "Accès SSH" })).toHaveAttribute("href", "/ssh");
   });
 
   it("shows the number of open alerts on the Alertes entry", async () => {

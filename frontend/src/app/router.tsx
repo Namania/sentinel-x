@@ -5,6 +5,7 @@ import { DashboardPage } from "@/pages/dashboard";
 import { LoginPage } from "@/pages/login";
 import { NotFoundPage } from "@/pages/not-found";
 import { ServerPage } from "@/pages/server";
+import { SshPage } from "@/pages/ssh";
 import { AppShell } from "./app-shell";
 import { RequireAuth } from "./require-auth";
 import { RootLayout } from "./root-layout";
@@ -29,6 +30,7 @@ export const routes: RouteObject[] = [
           { path: "/camera", element: <CameraPage /> },
           { path: "/serveur", element: <ServerPage /> },
           { path: "/alertes", element: <AlertsPage /> },
+          { path: "/ssh", element: <SshPage /> },
         ],
       },
     ],

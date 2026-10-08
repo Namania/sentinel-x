@@ -1,4 +1,12 @@
-import { BellRing, LayoutDashboard, LogOut, Server, Video, type LucideIcon } from "lucide-react";
+import {
+  BellRing,
+  KeyRound,
+  LayoutDashboard,
+  LogOut,
+  Server,
+  Video,
+  type LucideIcon,
+} from "lucide-react";
 import { NavLink, useMatch } from "react-router";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -34,6 +42,7 @@ const NAV_ITEMS: NavItemProps[] = [
   { to: "/camera", label: "Caméra", icon: Video, end: false },
   { to: "/serveur", label: "Serveur", icon: Server, end: false },
   { to: "/alertes", label: "Alertes", icon: BellRing, end: false },
+  { to: "/ssh", label: "Accès SSH", icon: KeyRound, end: false },
 ];
 
 function NavItem({ to, label, icon: Icon, end, badge }: NavItemProps) {
