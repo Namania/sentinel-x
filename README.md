@@ -12,6 +12,11 @@ docker compose exec api create-user     # crée ton utilisateur (email + mot de 
 scripts/smoke.sh                        # create-user → login → me → ws ping
 ```
 
+Sur le Pi, la carte SD se remplit vite avec les images de build : `make docker-size` montre ce que
+Docker occupe, `make docker-clean` libère les images inutilisées, les conteneurs arrêtés et le cache de
+build (stack démarrée, sinon ses images partent aussi et `make deploy` les reconstruit ; les volumes,
+donc la base, ne sont jamais touchés).
+
 Le seul fichier de configuration est `backend/.env` (copié de `backend/.env.example`) : il contient les valeurs `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` et le secret `JWT_SECRET` (32 caractères minimum). Il n'y a pas d'URL de base à renseigner : l'API construit l'URL de la base à partir des valeurs `POSTGRES_*`. La variable optionnelle `CAMERA_STREAM_URL` pointe vers le flux MJPEG à relayer : la webcam USB du Pi (`http://webcam:8080/stream`, voir « Caméra ») ou une caméra ESP32 (`http://<ip>:81/stream`).
 
 - Front : `http://<hôte>:8080/` (connexion, puis dashboard et vue caméra sur `/camera`, navigation dans la barre latérale)

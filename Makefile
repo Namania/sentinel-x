@@ -7,10 +7,12 @@
 #   make ssh-remove  list the authorised keys and remove one
 #   make ssh-log-install  on the Pi: relay the SSH connections (accepted / refused) to the dashboard
 #   make ssh-log-logs     follow that agent's logs
+#   make docker-size   what Docker takes on disk (images, containers, volumes, build cache)
+#   make docker-clean  reclaim space: unused images, stopped containers, build cache; volumes are kept
 COMPOSE      := docker compose
 COMPOSE_DEV  := $(COMPOSE) -f compose.yml -f compose.dev.yml
 
-.PHONY: dev deploy down logs ssh-add ssh-remove ssh-log-install ssh-log-logs
+.PHONY: dev deploy down logs ssh-add ssh-remove ssh-log-install ssh-log-logs docker-size docker-clean
 
 dev:
 	$(COMPOSE_DEV) up --build --renew-anon-volumes
@@ -39,3 +41,13 @@ ssh-log-install:
 
 ssh-log-logs:
 	journalctl --user -u sentinel-ssh-log -f
+
+docker-size:
+	docker system df
+
+# Run it with the stack up: images in use by a running container are kept, everything else goes.
+# Never add --volumes here: the database lives in a volume.
+docker-clean:
+	docker system prune -a -f
+	docker builder prune -a -f
+	docker system df
