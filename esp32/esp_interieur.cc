@@ -1,7 +1,11 @@
 #include <DHT.h>
 #include <WiFi.h>
+#include <WiFiClientSecure.h> // [MQTTS] TLS vers le broker
 #include <PubSubClient.h>
 #include <ArduinoJson.h> // [AJOUT] pour lire le message du buzzer
+#include <time.h>
+#include "secrets.h" // WIFI_SSID, WIFI_PASSWORD, MQTT_USER, MQTT_PASSWORD (copier secrets.h.example)
+#include "ca_cert.h" // CA_CERT : l'autorité du projet, pour vérifier le certificat du Pi
 
 // --- Broches ---
 #define DHT_PIN 4   // DATA du DHT11 sur D4
@@ -20,16 +24,17 @@ int niveauAirPropre = 0;
 
 // [MQTT] Configuration et fonctions réseau
 
-const char *WIFI_SSID = "wifi myDiL";
-const char *WIFI_PASSWORD = "myDiL@2025";
-const char *MQTT_HOST = "192.168.0.70";
-const uint16_t MQTT_PORT = 1883;
+// Identifiants Wi-Fi et compte MQTT dans secrets.h (hors git).
+// [MQTTS] Le broker n'accepte plus d'anonyme et écoute en TLS sur 8883 ; le compte de cet ESP est
+// esp1, donc il ne peut publier que sur sentinel/esp1 et lire sentinel/cmd/buzzer.
+const char *MQTT_HOST = "192.168.0.70"; // le certificat du Pi couvre cette IP (et sentinel-x.local)
+const uint16_t MQTT_PORT = 8883;
 const char *MQTT_TOPIC = "sentinel/esp1";
 const char *MQTT_ALERT_TOPIC = "sentinel/cmd/buzzer"; // [CORRIGÉ] topic du contrat
 int nb_alerts = 1;
 bool buzzerOn = false; // [AJOUT] dernier état "on" reçu du serveur
 
-WiFiClient wifiClient;
+WiFiClientSecure wifiClient; // [MQTTS] remplace WiFiClient
 PubSubClient mqtt(wifiClient);
 unsigned long dernierEssaiMqtt = 0;
 
@@ -53,6 +58,35 @@ void connectWifi()
   else
   {
     Serial.println("\nWi-Fi indisponible, on continue sans (reconnexion auto en fond)");
+  }
+}
+
+// [MQTTS] TLS vérifie les dates du certificat : il faut une horloge juste. NTP d'abord ; sans
+// Internet, la date de compilation suffit (le certificat vaut plus de deux ans).
+bool heureSynchronisee()
+{
+  return time(nullptr) > 1700000000; // après le 14/11/2023 : l'horloge n'est plus à 1970
+}
+
+void synchroniserHeure()
+{
+  configTime(0, 0, "pool.ntp.org", "time.google.com");
+  unsigned long debut = millis();
+  while (!heureSynchronisee() && millis() - debut < 15000)
+  {
+    delay(250);
+  }
+  if (!heureSynchronisee())
+  {
+    struct tm t = {};
+    strptime(__DATE__ " " __TIME__, "%b %d %Y %H:%M:%S", &t);
+    struct timeval tv = {mktime(&t), 0};
+    settimeofday(&tv, nullptr);
+    Serial.println("NTP indisponible : horloge réglée sur la date de compilation");
+  }
+  else
+  {
+    Serial.println("Heure synchronisée (NTP)");
   }
 }
 
@@ -88,7 +122,8 @@ void maintenirMqtt()
   String clientId = "espInterieur-" + WiFi.macAddress();
   clientId.replace(":", "");
   Serial.print("Connexion au broker... ");
-  if (mqtt.connect(clientId.c_str()))
+  // [MQTTS] poignée de main TLS (1 à 2 s sur ESP32) puis authentification par le compte esp1
+  if (mqtt.connect(clientId.c_str(), MQTT_USER, MQTT_PASSWORD))
   {
     Serial.println("OK");
     subscribeAlerts(MQTT_ALERT_TOPIC); // s'abonner à chaque connexion
@@ -96,7 +131,12 @@ void maintenirMqtt()
   else
   {
     Serial.print("échec, rc=");
-    Serial.println(mqtt.state()); // -2 = injoignable, 5 = non autorisé
+    Serial.println(mqtt.state()); // -2 = injoignable (ou TLS refusé), 4 = mauvais identifiants, 5 = non autorisé
+    char err[80];
+    if (wifiClient.lastError(err, sizeof err) != 0)
+    {
+      Serial.printf(" [TLS] %s\n", err); // ex. CN mismatch : se connecter par sentinel-x.local (mDNS)
+    }
   }
 }
 
@@ -215,7 +255,11 @@ void setup()
 
   // [MQTT]
   connectWifi();
+  synchroniserHeure();             // [MQTTS] avant toute poignée de main
+  wifiClient.setCACert(CA_CERT);   // [MQTTS] n'accepte que le certificat signé par la CA du projet
   mqtt.setServer(MQTT_HOST, MQTT_PORT);
+  mqtt.setKeepAlive(60);           // la reconnexion TLS coûte cher : moins de timeouts
+  mqtt.setSocketTimeout(10);
   mqtt.setCallback(recevoirAlerte);
 }
 

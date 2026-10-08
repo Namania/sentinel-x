@@ -8,3 +8,6 @@ certs/
 # MQTT accounts created by make mqtt-user
 .docker/mosquitto-auth/*
 !.docker/mosquitto-auth/.gitkeep
+
+# ESP32 credentials (copy esp32/secrets.h.example)
+esp32/secrets.h
