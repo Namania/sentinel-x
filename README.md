@@ -19,12 +19,12 @@ donc la base, ne sont jamais touchés).
 
 Le seul fichier de configuration est `backend/.env` (copié de `backend/.env.example`) : il contient les valeurs `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` et le secret `JWT_SECRET` (32 caractères minimum). Il n'y a pas d'URL de base à renseigner : l'API construit l'URL de la base à partir des valeurs `POSTGRES_*`. La variable optionnelle `CAMERA_STREAM_URL` pointe vers le flux MJPEG à relayer : la webcam USB du Pi (`http://webcam:8080/stream`, voir « Caméra ») ou une caméra ESP32 (`http://<ip>:81/stream`).
 
-- Front : `http://<hôte>:8080/` (connexion, puis dashboard et vue caméra sur `/camera`, navigation dans la barre latérale)
-- API via nginx : `http://<hôte>:8080/api/...` (par exemple `/api/health`)
-- Swagger : `http://<hôte>:8080/api/docs` (en local sans nginx : `http://localhost:8000/docs`)
-- WebSocket : `ws://<hôte>:8080/ws?token=<access_token>`
+- Front : `https://<hôte>:8443/` (connexion, puis dashboard et vue caméra sur `/camera`, navigation dans la barre latérale ; HTTPS seulement, voir « HTTPS »)
+- API via nginx : `https://<hôte>:8443/api/...` (par exemple `/api/health`)
+- Swagger : `https://<hôte>:8443/api/docs` (en local sans nginx : `http://localhost:8000/docs`)
+- WebSocket : `wss://<hôte>:8443/ws?token=<access_token>`
 - Mesures : section « Mesures » du Dashboard (temps réel via le WebSocket)
-- Flux caméra : `http://<hôte>:8080/api/camera/stream?token=<access_token>` (MJPEG, utilisable dans une balise `<img>` ; l'en-tête `Authorization: Bearer` fonctionne aussi)
+- Flux caméra : `https://<hôte>:8443/api/camera/stream?token=<access_token>` (MJPEG, utilisable dans une balise `<img>` ; l'en-tête `Authorization: Bearer` fonctionne aussi)
 - État caméra : `GET /api/camera/status` → `{"configured": true, "viewers": 1}` (même authentification)
 
 Il n'y a pas d'inscription par l'API : les comptes se créent uniquement avec la commande `create-user`, qui demande l'email puis le mot de passe (masqué, avec confirmation). En local hors Docker : `uv run create-user`.
@@ -46,12 +46,13 @@ liste en direct (`GET /api/ssh/events?outcome=all|accepted|refused&limit=…`, �
 `ssh.event`). Un refus ouvre une alerte `ssh` par IP (`device_id` = `ip:…`, valeur = nombre de
 tentatives), résolue après `SSH_ALERT_QUIET_MINUTES` (10) sans nouvelle tentative ; ajouter `ssh` à
 `BUZZER_TRIGGERS` pour qu'elle fasse sonner le buzzer. Au premier démarrage l'agent rejoue les 24
-dernières heures, puis reprend au curseur journald : rien n'est perdu pendant un `make deploy`.
-`make ssh-log-logs` suit ses logs ; `systemctl --user disable --now sentinel-ssh-log` le retire.
+dernières heures, puis reprend au curseur journald : rien n'est perdu pendant un `make deploy`. Il parle à l'API en HTTPS local avec la CA du projet
+(relancer `make ssh-log-install` après `make tls-init`). `make ssh-log-logs` suit ses logs ; `systemctl --user disable --now sentinel-ssh-log` le retire.
 
 ## HTTPS
 
-Le dashboard est servi en HTTP sur 8080 et, dès qu'un certificat existe, en HTTPS sur **8443**.
+Le dashboard n'est servi qu'en HTTPS sur **8443** (le port 8080 n'est plus publié) ; nginx n'ouvre le
+443 que lorsqu'un certificat existe, donc `make tls-init` est la première chose à faire sur le Pi.
 Le certificat est signé par une petite autorité (CA) propre au projet, à installer une fois sur
 chaque navigateur de l'équipe : ensuite plus d'avertissement, renouvellements compris.
 
@@ -67,9 +68,10 @@ noms du certificat ; le relancer renouvelle le certificat serveur (825 jours) en
 `certs/ca.crt` (macOS : trousseau Système, « Toujours faire confiance » ; Windows : « Autorités de
 certification racines de confiance » ; Android et iOS : profil de configuration), puis ouvrir
 `https://192.168.0.70:8443/`. Le front construit `wss://` et `/api` à partir de la page, rien à
-régler. Le port 8080 (HTTP) reste servi : l'agent SSH y parle en `127.0.0.1`, que ufw ne filtre
-pas. Pour que le LAN n'ait plus que le HTTPS, retirer la règle ufw du 8080 (`sudo ufw status
-numbered` puis `sudo ufw delete <n>`) : l'agent continue de fonctionner.
+régler. Le certificat couvre aussi `127.0.0.1` : l'agent SSH (`make ssh-log-install`, à relancer
+après `make tls-init`) parle à l'API en `https://127.0.0.1:8443/api` avec la CA
+(`SSL_CERT_FILE` dans `~/.config/sentinel-x/ssh-log.env`). La règle ufw du 8080 peut être retirée
+(`sudo ufw status numbered` puis `sudo ufw delete <n>`).
 
 ## Développer
 

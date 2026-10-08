@@ -3,7 +3,8 @@
 # (certs/ca.crt, to install once on every browser of the team) and the Pi's certificate signed by
 # it (certs/server.crt + server.key, mounted into the web container). Re-run it to renew the
 # server certificate: the CA is kept when it already exists.
-#   TLS_IP        the Pi's address on the LAN (default: 192.168.0.70)
+#   TLS_IP        the Pi's address on the LAN (default: 192.168.0.70); 127.0.0.1 is always added
+#                 so local clients (the SSH log agent) can use HTTPS too
 #   TLS_HOSTNAMES extra names, space-separated (default: "sentinel-x sentinel-x.local")
 set -eu
 
@@ -28,7 +29,7 @@ else
   echo "CA existante réutilisée : $DIR/ca.crt"
 fi
 
-SAN="IP:$IP"
+SAN="IP:$IP, IP:127.0.0.1"
 for h in $HOSTNAMES; do SAN="$SAN, DNS:$h"; done
 printf 'subjectAltName = %s\nextendedKeyUsage = serverAuth\nbasicConstraints = CA:FALSE\n' "$SAN" > server.ext
 openssl req -newkey rsa:2048 -nodes -keyout server.key -out server.csr -subj "/CN=sentinel-x" 2>/dev/null
