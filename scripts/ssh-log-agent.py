@@ -33,7 +33,7 @@ ACCEPTED = re.compile(
 REFUSED = (
     (
         re.compile(
-            r"^Connection closed by authenticating user (?P<user>\S+) (?P<ip>\S+)"
+            r"^Connection closed by authenticating user (?P<user>.*?) (?P<ip>\S+)"
             r" port (?P<port>\d+) \[preauth\]$"
         ),
         "key_rejected",
@@ -41,7 +41,7 @@ REFUSED = (
     ),
     (
         re.compile(
-            r"^Connection closed by invalid user (?P<user>\S+) (?P<ip>\S+)"
+            r"^Connection closed by invalid user (?P<user>.*?) (?P<ip>\S+)"
             r" port (?P<port>\d+) \[preauth\]$"
         ),
         "unknown_user",
@@ -49,7 +49,7 @@ REFUSED = (
     ),
     (
         re.compile(
-            r"^Failed password for (?:invalid user )?(?P<user>\S+) from (?P<ip>\S+)"
+            r"^Failed password for (?:invalid user )?(?P<user>.*?) from (?P<ip>\S+)"
             r" port (?P<port>\d+) ssh2$"
         ),
         "bad_password",
@@ -57,7 +57,7 @@ REFUSED = (
     ),
     (
         re.compile(
-            r"^Disconnecting (?:invalid user |authenticating user )?(?P<user>\S+) (?P<ip>\S+)"
+            r"^Disconnecting (?:invalid user |authenticating user )?(?P<user>.*?) (?P<ip>\S+)"
             r" port (?P<port>\d+): Too many authentication failures \[preauth\]$"
         ),
         "too_many_attempts",
@@ -131,7 +131,8 @@ def event_from_entry(entry: dict, comments: Mapping[str, str | None]) -> Event |
         journal_id=entry["__CURSOR"],
         occurred_at=_iso(micros),
         outcome=fields["outcome"],
-        username=fields["username"][:MAX_USERNAME],
+        # Scanners probe empty usernames; the API wants at least one character.
+        username=(fields["username"] or "?")[:MAX_USERNAME],
         ip=fields["ip"][:MAX_IP],
         port=fields["port"],
         method=fields["method"],

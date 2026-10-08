@@ -220,6 +220,17 @@ class SqlAlchemyAlertRepository(AlertRepository):
         row = (await self._session.scalars(stmt)).first()
         return _alert_to_entity(row) if row else None
 
+    async def latest_for(self, device_id: str, metric: Metric) -> Alert | None:
+        m = AlertModel
+        stmt = (
+            select(m)
+            .where(m.device_id == device_id, m.metric == metric)
+            .order_by(m.resolved_at.is_(None).desc(), m.opened_at.desc(), m.id.desc())
+            .limit(1)
+        )
+        row = (await self._session.scalars(stmt)).first()
+        return _alert_to_entity(row) if row else None
+
     async def open_for_device(self, device_id: str) -> dict[Metric, Alert]:
         m = AlertModel
         stmt = select(m).where(m.device_id == device_id, m.resolved_at.is_(None))

@@ -101,3 +101,15 @@ async def test_open_for_device_returns_the_open_alerts_by_metric(uow):
         found = await tx.alerts.open_for_device("esp-interieur")
         assert found == {"temperature": temp, "gas": gas}
         assert await tx.alerts.open_for_device("esp-nowhere") == {}
+
+
+async def test_latest_for_prefers_the_open_alert_then_the_most_recent(uow):
+    old = alert(device="ip:203.0.113.5", metric="ssh", minutes=-120, resolved=True)
+    recent = alert(device="ip:203.0.113.5", metric="ssh", minutes=-30, resolved=True)
+    await seed(uow, [old, recent, alert(device="ip:198.51.100.7", metric="ssh")])
+    async with uow as tx:
+        assert (await tx.alerts.latest_for("ip:203.0.113.5", "ssh")).id == recent.id
+        assert (await tx.alerts.latest_for("ip:203.0.113.5", "gas")) is None
+        current = alert(device="ip:203.0.113.5", metric="ssh", minutes=-200)
+        await tx.alerts.add(current)
+        assert (await tx.alerts.latest_for("ip:203.0.113.5", "ssh")).id == current.id

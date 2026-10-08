@@ -146,6 +146,39 @@ def test_ignored_lines(message):
     assert agent.parse_message(message) is None
 
 
+@pytest.mark.parametrize(
+    ("message", "username", "reason"),
+    [
+        ("Connection closed by invalid user  203.0.113.5 port 51235 [preauth]", "", "unknown_user"),
+        (
+            "Connection closed by invalid user foo bar 203.0.113.5 port 51235 [preauth]",
+            "foo bar",
+            "unknown_user",
+        ),
+        (
+            "Failed password for invalid user a b from 203.0.113.5 port 51236 ssh2",
+            "a b",
+            "bad_password",
+        ),
+        (
+            "Connection closed by authenticating user  fe80::1%eth0 port 2 [preauth]",
+            "",
+            "key_rejected",
+        ),
+    ],
+)
+def test_probes_with_empty_or_spaced_usernames_are_still_refusals(message, username, reason):
+    parsed = agent.parse_message(message)
+    assert parsed is not None
+    assert (parsed["username"], parsed["reason"]) == (username, reason)
+    assert parsed["ip"].startswith(("203.", "fe80"))
+
+
+def test_an_empty_username_is_sent_as_a_placeholder():
+    e = entry("Connection closed by invalid user  203.0.113.5 port 51235 [preauth]")
+    assert agent.event_from_entry(e, {}).username == "?"
+
+
 def test_event_from_entry_adds_time_cursor_and_the_key_comment():
     event = agent.event_from_entry(entry(ACCEPTED_LINE), COMMENTS)
     assert event.journal_id == "s=1;i=7"

@@ -1,6 +1,8 @@
 import asyncio
 from datetime import UTC, datetime, timedelta
 
+import pytest
+
 from app.application.ssh.record import RecordSshEvent, SshEventInput
 from app.domain.alert import Alert
 from tests.unit.fakes import InMemoryUnitOfWork, RecordingBroadcaster
@@ -82,7 +84,8 @@ def types(bus) -> list[str]:
 
 
 async def settle() -> None:
-    for _ in range(3):
+    # The timer hops through Event.wait, asyncio.wait and a fresh sleep task: several ticks.
+    for _ in range(10):
         await asyncio.sleep(0)
 
 
@@ -225,3 +228,116 @@ async def test_close_cancels_the_timer():
     service.close()
     await settle()
     assert wakes[0].cancelled()
+
+
+class GatedCommitUow(InMemoryUnitOfWork):
+    """`commit` waits for the test to open the gate: the timer can be frozen mid-transaction."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.gate: asyncio.Future[None] | None = None
+
+    async def commit(self) -> None:
+        if self.gate is not None and not self.gate.done():
+            await self.gate
+        await super().commit()
+
+
+async def test_a_database_error_in_the_timer_backs_off_instead_of_spinning():
+    service, uow, _, clock, sleeps, wakes = build()
+    await service.record(refused("c1"))
+    await settle()
+    clock.now = NOW + timedelta(minutes=10)
+    broken = uow.alerts
+
+    class Exploding:
+        async def open_for(self, *args):
+            raise ConnectionError("database away")
+
+        def __getattr__(self, name):
+            return getattr(broken, name)
+
+    uow.alerts = Exploding()
+    wakes[-1].set_result(None)
+    await settle()
+    # Not a 0 s retry: the timer waits a while before trying the database again.
+    assert sleeps[-1] >= 30
+    uow.alerts = broken
+    wakes[-1].set_result(None)
+    await settle()
+    assert not uow.alerts.alerts[0].is_open
+
+
+async def test_a_refusal_during_the_resolution_does_not_cancel_it():
+    uow = GatedCommitUow()
+    bus = RecordingBroadcaster()
+    clock = Clock()
+    sleeps: list[float] = []
+    wakes: list[asyncio.Future[None]] = []
+
+    async def sleep(seconds: float) -> None:
+        sleeps.append(seconds)
+        future: asyncio.Future[None] = asyncio.get_running_loop().create_future()
+        wakes.append(future)
+        await future
+
+    service = RecordSshEvent(lambda: uow, bus, quiet_minutes=10, clock=clock, sleep=sleep)
+    await service.record(refused("c1", ip="203.0.113.5"))
+    await settle()
+    clock.now = NOW + timedelta(minutes=11)
+    uow.gate = asyncio.get_running_loop().create_future()
+    wakes[-1].set_result(None)
+    await settle()  # the timer is now inside its transaction, waiting on the gate
+    other = asyncio.create_task(service.record(refused("c2", ip="198.51.100.7", at=clock.now)))
+    await settle()
+    uow.gate.set_result(None)
+    uow.gate = None
+    await other
+    await settle()
+    by_ip = {a.device_id: a for a in uow.alerts.alerts}
+    assert not by_ip["ip:203.0.113.5"].is_open  # the resolution went through
+    assert by_ip["ip:198.51.100.7"].is_open
+    assert types(bus).count("alert.resolved") == 1
+    assert sleeps[-1] == 10 * 60  # re-armed for the second ip, timer still alive
+    service.close()
+
+
+async def test_stale_refusals_are_recorded_as_history_without_waking_anyone():
+    hook = Hook()
+    service, uow, bus, _, sleeps, _ = build(hook)
+    first = NOW - timedelta(hours=23)
+    for i in range(5):
+        await service.record(refused(f"c{i}", at=first + timedelta(minutes=2 * i)))
+    await settle()
+    (alert,) = uow.alerts.alerts
+    assert alert.peak_value == 5.0
+    assert not alert.is_open
+    assert alert.opened_at == first
+    assert alert.resolved_at == first + timedelta(minutes=8) + timedelta(minutes=10)
+    assert alert.resolved_value == 5.0
+    assert "alert.opened" not in types(bus)
+    assert types(bus).count("ssh.event") == 5
+    assert hook.calls == 0
+    assert sleeps == []  # nothing to resolve later
+
+
+async def test_a_stale_refusal_outside_the_previous_window_opens_a_second_history_alert():
+    service, uow, _, _, _, _ = build()
+    first = NOW - timedelta(hours=23)
+    await service.record(refused("c1", at=first))
+    await service.record(refused("c2", at=first + timedelta(minutes=30)))
+    assert len(uow.alerts.alerts) == 2
+    assert all(not a.is_open for a in uow.alerts.alerts)
+
+
+async def test_a_stale_refusal_still_counts_into_an_open_alert_and_hastens_its_end():
+    """The API was down: a refusal from 15 min ago arrives while the IP's alert is open."""
+    service, uow, _, clock, sleeps, _ = build()
+    await service.record(refused("c1"))
+    await settle()
+    clock.now = NOW + timedelta(minutes=5)
+    await service.record(refused("c2", at=NOW - timedelta(minutes=15)))
+    await settle()
+    (alert,) = uow.alerts.alerts
+    assert alert.is_open and alert.peak_value == 2.0
+    assert sleeps[-1] == pytest.approx(5 * 60)  # still 10 min after the newest attempt (NOW)
