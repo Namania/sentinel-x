@@ -10,7 +10,7 @@ from app.application.alerts.dtos import AlertOutput
 from app.domain.alert import Alert, Direction, Metric
 from app.domain.repositories import AlertStatus
 from app.domain.siren import SirenState
-from app.presentation.dependencies import CurrentUserIdDep, SirenDep, UowDep
+from app.presentation.dependencies import CurrentUserIdDep, SirenDep, SshAccessDep, UowDep
 
 router = APIRouter(prefix="/alerts", tags=["alerts"])
 
@@ -59,6 +59,21 @@ async def list_alerts(
 async def alert_summary(_: CurrentUserIdDep, uow: UowDep) -> AlertSummary:
     async with uow as tx:
         return AlertSummary(open=await tx.alerts.count_open())
+
+
+@router.post(
+    "/{alert_id}/resolve",
+    response_model=AlertResponse,
+    summary="Clôturer à la main une alerte SSH ouverte",
+    description="Les alertes capteurs se ferment seules quand la mesure revient dans les bornes ; "
+    "une alerte `ssh` se ferme aussi d'elle-même après `SSH_ALERT_QUIET_MINUTES`, ou ici tout de "
+    "suite. 404 si l'alerte n'existe pas, 409 si elle est déjà résolue ou n'est pas une alerte "
+    "`ssh`. Diffuse `alert.resolved` et rafraîchit la sirène.",
+)
+async def resolve_alert(
+    alert_id: UUID, user_id: CurrentUserIdDep, ssh_access: SshAccessDep
+) -> AlertResponse:
+    return AlertResponse.from_entity(await ssh_access.resolve(alert_id, by=user_id))
 
 
 class SirenResponse(BaseModel):

@@ -18,6 +18,7 @@ import logging
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
+from uuid import UUID
 
 from app.application.alerts.dtos import AlertOutput
 from app.application.ports.event_broadcaster import EventBroadcaster
@@ -25,6 +26,7 @@ from app.application.ports.unit_of_work import UnitOfWork
 from app.application.sensors.record import MAX_AGE, MAX_FUTURE_DRIFT
 from app.application.ssh.dtos import ssh_event_to_dict
 from app.domain.alert import Alert
+from app.domain.errors import AlertNotClosable, AlertNotFound
 from app.domain.ssh_event import Outcome, Reason, SshEvent
 
 logger = logging.getLogger(__name__)
@@ -137,6 +139,28 @@ class RecordSshEvent:
                     await self._notify_alerts_changed()
                 self._wake_timer()
         return event, True
+
+    async def resolve(self, alert_id: UUID, by: UUID) -> Alert:
+        """Close an open `ssh` alert by hand; the IP's next refusal opens a new one."""
+        async with self._lock:
+            now = self._clock()
+            async with self._uow_factory() as uow:
+                current = await uow.alerts.get(alert_id)
+                if current is None:
+                    raise AlertNotFound()
+                if current.metric != "ssh" or not current.is_open:
+                    raise AlertNotClosable()
+                closed = current.resolve(at=now, value=current.peak_value)
+                await uow.alerts.save(closed)
+                await uow.commit()
+            self._last_attempt.pop(closed.device_id[len(DEVICE_PREFIX) :], None)
+        logger.info("ssh alert %s (%s) closed by %s", closed.id, closed.device_id, by)
+        self._wake_timer()  # drop the pending deadline of that ip
+        await self._broadcaster.broadcast(
+            {"type": "alert.resolved", "data": AlertOutput.from_entity(closed).to_event()}
+        )
+        await self._notify_alerts_changed()
+        return closed
 
     async def _count_refusal(self, uow: UnitOfWork, event: SshEvent, now: datetime) -> _AlertChange:
         device_id = f"{DEVICE_PREFIX}{event.ip}"

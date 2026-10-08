@@ -16,3 +16,11 @@ class UserNotFound(DomainError):
 
 class InvalidReading(DomainError):
     """A sensor reading violates the accepted bounds."""
+
+
+class AlertNotFound(DomainError):
+    pass
+
+
+class AlertNotClosable(DomainError):
+    """Only an open `ssh` alert closes by hand; sensor alerts close with the readings."""

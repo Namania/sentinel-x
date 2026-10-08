@@ -61,6 +61,9 @@ class AlertRepository(ABC):
     async def open_for(self, device_id: str, metric: Metric) -> Alert | None: ...
 
     @abstractmethod
+    async def get(self, alert_id: UUID) -> Alert | None: ...
+
+    @abstractmethod
     async def latest_for(self, device_id: str, metric: Metric) -> Alert | None:
         """The open alert of that device and metric, else its most recently opened one."""
 

@@ -116,6 +116,9 @@ class InMemoryAlertRepository(AlertRepository):
         self.lookups += 1
         return {a.metric: a for a in self.alerts if a.device_id == device_id and a.is_open}
 
+    async def get(self, alert_id: UUID) -> Alert | None:
+        return next((a for a in self.alerts if a.id == alert_id), None)
+
     async def latest_for(self, device_id: str, metric: Metric) -> Alert | None:
         rows = [a for a in self.alerts if a.device_id == device_id and a.metric == metric]
         rows.sort(key=lambda a: (not a.is_open, -a.opened_at.timestamp()))

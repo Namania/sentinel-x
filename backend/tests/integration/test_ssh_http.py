@@ -109,3 +109,23 @@ def test_events_reach_the_websocket(client):
         post(client, {**REFUSED, "journal_id": "s=ws;i=3", "ip": "198.51.100.9"})
         _next(ws, "ssh.event")
         assert _next(ws, "alert.updated")["data"]["peak_value"] == 2.0
+
+
+def test_an_ssh_alert_can_be_closed_by_hand(client):
+    headers = auth(client)
+    assert client.post("/alerts/00000000-0000-4000-8000-000000000000/resolve").status_code == 401
+    post(client, {**REFUSED, "journal_id": "s=close;i=1", "ip": "198.51.100.42"})
+    (alert,) = client.get("/alerts?device_id=ip:198.51.100.42", headers=headers).json()
+    tokens = create_user_and_login(client, email="bob@example.com")
+    with client.websocket_connect(f"/ws?token={tokens['access_token']}") as ws:
+        closed = client.post(f"/alerts/{alert['id']}/resolve", headers=headers)
+        assert closed.status_code == 200, closed.text
+        assert closed.json()["resolved_value"] == 1.0 and closed.json()["resolved_at"]
+        assert _next(ws, "alert.resolved")["data"]["id"] == alert["id"]
+    assert client.post(f"/alerts/{alert['id']}/resolve", headers=headers).status_code == 409
+    missing = "00000000-0000-4000-8000-000000000000"
+    assert client.post(f"/alerts/{missing}/resolve", headers=headers).status_code == 404
+    hot = {"device_id": "esp-interieur", "temperature": {"humidity": 48.0, "temp": 30.4}}
+    assert client.post("/sensors/readings", json=hot, headers=DEVICE_HEADERS).status_code == 201
+    (sensor,) = client.get("/alerts?device_id=esp-interieur", headers=headers).json()
+    assert client.post(f"/alerts/{sensor['id']}/resolve", headers=headers).status_code == 409

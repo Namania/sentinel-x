@@ -220,6 +220,10 @@ class SqlAlchemyAlertRepository(AlertRepository):
         row = (await self._session.scalars(stmt)).first()
         return _alert_to_entity(row) if row else None
 
+    async def get(self, alert_id: UUID) -> Alert | None:
+        row = await self._session.get(AlertModel, alert_id)
+        return _alert_to_entity(row) if row else None
+
     async def latest_for(self, device_id: str, metric: Metric) -> Alert | None:
         m = AlertModel
         stmt = (

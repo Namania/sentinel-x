@@ -113,3 +113,13 @@ async def test_latest_for_prefers_the_open_alert_then_the_most_recent(uow):
         current = alert(device="ip:203.0.113.5", metric="ssh", minutes=-200)
         await tx.alerts.add(current)
         assert (await tx.alerts.latest_for("ip:203.0.113.5", "ssh")).id == current.id
+
+
+async def test_get_returns_the_alert_by_id_or_none(uow):
+    a = alert()
+    await seed(uow, [a])
+    async with uow as tx:
+        assert (await tx.alerts.get(a.id)).id == a.id
+        from uuid import uuid4
+
+        assert await tx.alerts.get(uuid4()) is None

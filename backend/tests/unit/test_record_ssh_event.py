@@ -1,10 +1,12 @@
 import asyncio
 from datetime import UTC, datetime, timedelta
+from uuid import uuid4
 
 import pytest
 
 from app.application.ssh.record import RecordSshEvent, SshEventInput
 from app.domain.alert import Alert
+from app.domain.errors import AlertNotClosable, AlertNotFound
 from tests.unit.fakes import InMemoryUnitOfWork, RecordingBroadcaster
 
 NOW = datetime(2026, 10, 8, 9, 0, tzinfo=UTC)
@@ -341,3 +343,41 @@ async def test_a_stale_refusal_still_counts_into_an_open_alert_and_hastens_its_e
     (alert,) = uow.alerts.alerts
     assert alert.is_open and alert.peak_value == 2.0
     assert sleeps[-1] == pytest.approx(5 * 60)  # still 10 min after the newest attempt (NOW)
+
+
+async def test_resolve_closes_an_ssh_alert_by_hand_and_forgets_the_ip():
+    hook = Hook()
+    service, uow, bus, clock, sleeps, wakes = build(hook)
+    await service.record(refused("c1"))
+    await service.record(refused("c2", at=NOW + timedelta(minutes=1)))
+    await settle()
+    clock.now = NOW + timedelta(minutes=2)
+    closed = await service.resolve(uow.alerts.alerts[0].id, by=uuid4())
+    await settle()
+    assert closed.resolved_at == clock.now and closed.resolved_value == 2.0
+    assert not uow.alerts.alerts[0].is_open
+    assert types(bus)[-1] == "alert.resolved"
+    assert hook.calls == 2
+    # The timer has nothing left to do: its pending sleep was abandoned, no new one armed.
+    assert wakes[-1].cancelled() and len(sleeps) == len(wakes)
+    # The next refusal from that ip is a new alert, not a reopening.
+    await service.record(refused("c3", at=clock.now))
+    assert len(uow.alerts.alerts) == 2 and uow.alerts.alerts[1].is_open
+
+
+async def test_resolve_refuses_unknown_sensor_or_closed_alerts():
+    service, uow, bus, _, _, _ = build()
+    with pytest.raises(AlertNotFound):
+        await service.resolve(uuid4(), by=uuid4())
+    sensor = Alert.open(
+        device_id="esp-interieur", metric="gas", direction="high", threshold=0.0, at=NOW, value=1.0
+    )
+    await uow.alerts.add(sensor)
+    with pytest.raises(AlertNotClosable):
+        await service.resolve(sensor.id, by=uuid4())
+    await service.record(refused("c1"))
+    ssh = uow.alerts.alerts[1]
+    await service.resolve(ssh.id, by=uuid4())
+    with pytest.raises(AlertNotClosable):
+        await service.resolve(ssh.id, by=uuid4())
+    assert sensor.is_open and types(bus).count("alert.resolved") == 1

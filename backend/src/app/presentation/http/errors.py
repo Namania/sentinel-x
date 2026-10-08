@@ -1,7 +1,14 @@
 from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
 
-from app.domain.errors import EmailAlreadyUsed, InvalidCredentials, InvalidReading, UserNotFound
+from app.domain.errors import (
+    AlertNotClosable,
+    AlertNotFound,
+    EmailAlreadyUsed,
+    InvalidCredentials,
+    InvalidReading,
+    UserNotFound,
+)
 
 
 def register_error_handlers(app: FastAPI) -> None:
@@ -23,6 +30,19 @@ def register_error_handlers(app: FastAPI) -> None:
     async def _user_not_found(_: Request, __: UserNotFound) -> JSONResponse:
         return JSONResponse(
             status_code=status.HTTP_404_NOT_FOUND, content={"detail": "User not found"}
+        )
+
+    @app.exception_handler(AlertNotFound)
+    async def _alert_not_found(_: Request, __: AlertNotFound) -> JSONResponse:
+        return JSONResponse(
+            status_code=status.HTTP_404_NOT_FOUND, content={"detail": "Alert not found"}
+        )
+
+    @app.exception_handler(AlertNotClosable)
+    async def _alert_not_closable(_: Request, __: AlertNotClosable) -> JSONResponse:
+        return JSONResponse(
+            status_code=status.HTTP_409_CONFLICT,
+            content={"detail": "Only an open SSH alert can be closed by hand"},
         )
 
     @app.exception_handler(InvalidReading)
