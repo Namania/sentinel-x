@@ -6,6 +6,7 @@ import { accessTokenExpiringIn, makeJwt } from "./jwt";
 import { bucketsFixture, DEVICE, makeReading, NOW_MS, readingsFixture } from "./sensors";
 import { healthFixture, SERVER_NOW_MS } from "./server-health";
 import { makeSiren } from "./siren";
+import { sshEventsFixture } from "./ssh";
 
 export const TEST_USER = {
   id: "11111111-1111-4111-8111-111111111111",
@@ -164,6 +165,17 @@ export const handlers = [
   http.delete("/api/alerts/siren/mute", ({ request }) =>
     isValidAccessToken(bearer(request)) ? HttpResponse.json(makeSiren()) : unauthenticated(),
   ),
+  http.get("/api/ssh/events", ({ request }) => {
+    if (!isValidAccessToken(bearer(request))) return unauthenticated();
+    const url = new URL(request.url);
+    const outcome = url.searchParams.get("outcome") ?? "all";
+    const limit = Number(url.searchParams.get("limit") ?? 100);
+    return HttpResponse.json(
+      sshEventsFixture()
+        .filter((e) => outcome === "all" || e.outcome === outcome)
+        .slice(0, limit),
+    );
+  }),
   http.get("/api/server/health", ({ request }) => {
     if (!isValidAccessToken(bearer(request))) return unauthenticated();
     const history = healthFixture(4, SERVER_NOW_MS);
